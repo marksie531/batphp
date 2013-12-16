@@ -1,0 +1,35 @@
+* {
+	font-family: 'Arial';
+}
+
+table {
+	font-size:13px;
+	padding: 1px;
+	border-collapse: collapse;
+}
+table tr td {
+	text-align: center;
+	padding: 5px;
+	border: 1px solid #cccccc; 
+}
+
+table thead tr {
+	font-weight: bold;
+	background: #555555;
+	color: #ffffff;
+}
+
+table tfoot tr {
+	background: #eeeeee;
+	color: #444444;
+}
+
+table tbody {
+	vertical-align: top;
+}
+
+table.list_table {
+	
+}
+
+table#rooms td[1] { width: 100px; }
