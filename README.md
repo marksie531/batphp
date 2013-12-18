@@ -54,7 +54,7 @@ $batDef = array (
 Top level attributes (required)
 -------------------------------
 
-| Name              |      Description                                                                |
+| Name              | Description                                                                     |
 |-------------------|---------------------------------------------------------------------------------|
 | _action           | Set this to the name of the PHP page where the table in e.g. customer.php       |
 | _db_table         | The name of the database table that we are viewing / editing e.g. CUSTOMER      |
@@ -79,29 +79,3 @@ Column attributes (required)
 
 Column attributes (optional)
 ----------------------------
-
-```php
-*TODO*
-
-Example BAT defintion
-
-$batDef = array (
-'_edit_id' => 'edit_id_thing',
-'_list_id' => 'list_id_thing',
-'_list_class' => 'test_table_list_class',
-'_edit_cass' => 'test_table_edit_class',
-'_action' => 'test1.php',
-'_db_table' => 'ROOM',
-'_db_list_sql' => $query,
-'_cols' => array (
-array ('_lb' => 'ID',          '_pkc' => 'ID',         '_w' => 10,  '_flags' => 'LS', '_input' => 'text|40'),
-array ('_lb' => 'Name',        '_col' => 'NAME',       '_w' => 100, '_flags' => 'LSE', '_input' => 'text|100'),
-array ('_lb' => 'Type',        '_col' => 'TDESC',      '_w' => 80,  '_flags' => 'LSE', '_input' => 'text|40'),
-array ('_lb' => 'Min.Sl',      '_col' => 'MIN_SLEEPS', '_w' => 40,  '_flags' => 'LSE', '_input' => 'text|40'),
-array ('_lb' => 'Sleeps',      '_col' => 'SLEEPS',     '_w' => 40,  '_flags' => 'LSE', '_input' => 'text|40'),
-array ('_lb' => 'Description', '_col' => 'RDESC',      '_w' => 500, '_flags' => 'LSE', '_input' => 'text|80,4')
-),
-'_can_edit' => true, '_can_delete' => true,	'_can_excel' => true, '_can_pdf' => false, '_can_print' => false,
-'_page_limit' => 30
-);
-```

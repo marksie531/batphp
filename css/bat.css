@@ -1,9 +1,23 @@
 * {
 	font-family: 'Arial';
+	font-size: 12px;
 }
 
+a {
+	text-decoration: none;
+}
+a:link {
+	color:#ffffff;
+}
+a:visited {
+	color:#ffffff;
+}
+a:hover {
+	text-decoration: underline;
+}
+
+
 table {
-	font-size:13px;
 	padding: 1px;
 	border-collapse: collapse;
 }
@@ -28,8 +42,21 @@ table tbody {
 	vertical-align: top;
 }
 
-table.list_table {
-	
+table.list_table tfoot td {
+	text-align: left;
+}
+table.list_table tfoot span {
+	text-align: center;
+	display : inline-block; 
+	width: 50px;
 }
 
-table#rooms td[1] { width: 100px; }
+p.error {
+	color: #CC0000;
+	font-weight: bold;
+}
+
+p.success {
+	color: #009900;
+	font-weight: bold;
+}
