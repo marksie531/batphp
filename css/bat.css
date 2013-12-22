@@ -16,7 +16,7 @@ a:hover {
 	text-decoration: underline;
 }
 
-
+/* All table settings */
 table {
 	padding: 1px;
 	border-collapse: collapse;
@@ -42,6 +42,7 @@ table tbody {
 	vertical-align: top;
 }
 
+/* List table specific settings */
 table.list_table tfoot td {
 	text-align: left;
 }
@@ -51,6 +52,29 @@ table.list_table tfoot span {
 	width: 50px;
 }
 
+/* Edit table specific settings */
+table.edit_table {
+	border: 1px solid #cccccc; 
+}
+table.edit_table tbody td {
+	padding: 10px;
+	border: none;
+}
+table.edit_table tbody td {
+	text-align: left;
+}
+table.edit_table tbody td:first-child {
+	text-align: right;
+	font-weight: bold;
+}
+table.edit_table thead td {
+	border-bottom: 1px solid #cccccc; 
+}
+table.edit_table tfoot td {
+	border-top: 1px solid #cccccc; 
+}
+
+/* Other settings */
 p.error {
 	color: #CC0000;
 	font-weight: bold;

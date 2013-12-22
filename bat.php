@@ -4,7 +4,6 @@
 $defaultRowCount = 25;
 
 /*  ===== TODO =====
-3) VALIDATION
 4) FILTERING
 */
 
@@ -14,13 +13,13 @@ function doBat ($batDef, $dbh) {
   // Do actions first
   $action = getAction ();
   if ($action == 'delete') {
-    deleteRow ($batDef, $dbh, $_GET);
+    deleteRow ($batDef, $dbh);
   }
   else if ($action == 'update') {
-    updateRow ($batDef, $dbh, $_POST);
+    updateRow ($batDef, $dbh);
   }
   else if ($action == 'insert') {
-    insertRow ($batDef, $dbh, $_POST);
+    insertRow ($batDef, $dbh);
   }
 
   // Display view
@@ -46,8 +45,10 @@ function showBatList ($batDef, $dbh) {
   $asc = isset ($_GET['asc']) ? $_GET['asc'] : $defaultAsc;
   $isPaged = isset ($batDef['_pagination']);
 
-  // 2) Create and execute List SQL query
-  $sql = $batDef['_db_list_sql'];
+  // 2) Read / Generate list SQL
+
+  // ... add column ordering
+  $sql = isset ($batDef['_db_list_sql']) ? $batDef['_db_list_sql'] : getListSql ($batDef);
   if ($sort != -1) {
     $col = isset ($cols[$sort]['_pkc']) ? $cols[$sort]['_pkc'] : $cols[$sort]['_col'];
     $sql .= ' ORDER BY '.$col.' '.($asc == 1 ? 'ASC' : 'DESC');
@@ -171,39 +172,43 @@ function showBatList ($batDef, $dbh) {
 
   // 5) Display pagination footer if applicable
   if ($isPaged) {
+    // Count rows
+    $countSql = isset ($pagination['_db_count_sql']) ? $pagination['_db_count_sql'] : "SELECT COUNT(1) FROM ".$batDef['_db_table'];
+    debug ($batDef, $countSql.';');
+
     $pagination = $batDef ['_pagination'];
     $page = isset ($_GET['page']) ? $_GET['page'] : 0;
+    $rowsPerPage = getRowsPerPage ($batDef);
+    $totalRows = getValue ($countSql);
+    $maxPage = ceil ($totalRows / $rowsPerPage);
+
     $html .= '<form name="rows" action="'.$batDef['_action'].'">
     <tfoot><tr><td colspan="'.getColumns($batDef).'">';
 
-    // Create "Display" section
+    // Create "Display" combo box
     if (isset ($pagination['_row_counts'])) {
-      $page = isset($_GET['page']) ? $_GET['page'] : 0;
-      $rowsPerPage = getRowsPerPage ($batDef);
-      $totalRows = getValue ($pagination['_db_count_sql']);
-      $maxPage = ceil ($totalRows / $rowsPerPage);
-
-      // Create pagination HTML
-      $html .= '<strong>Display: </strong>
+	      $html .= '<strong>Display: </strong>
         <select name="rows" onchange="javascript:document.rows.submit()">';
       foreach ($pagination['_row_counts'] as $rowCount) {
         $s = $rowsPerPage == $rowCount ? ' selected="selected"' : '';
         $html .= '<option'.$s.'>'.$rowCount.'</option>';
       }
-      $html .= '</select> <span>';
-
-      $addHtml = "&rows=".$rowsPerPage;
-      if ($page > 0) {
-        $html .= ' <a href="'.$action.'?page=0'.$addHtml.'"><img alt="First" title="First" src="images/bat/navfirst.gif" width="16" height="16" /></a>';
-	  	$html .= ' <a href="'.$action.'?page='.($page - 1).$addHtml.'"><img alt="Previous" title="Previous" src="images/bat/navprev.gif" width="16" height="16" /></a>';
-      }
-      $html .= ' </span><span><strong>'.($page + 1).'</strong> of <strong>'.($maxPage).'</strong></span> <span>';
-      if ($page + 1 < $maxPage) {
-	    $html .= ' <a href="'.$action.'?page='.($page + 1).$addHtml.'"><img alt="Next" title="Next" src="images/bat/navnext.gif" width="16" height="16" /></a>';
-	    $html .= ' <a href="'.$action.'?page='.($maxPage - 1).$addHtml.'"><img alt="Last" title="Last" src="images/bat/navlast.gif" width="16" height="16" /></a>';
-      }
-      $html .= '</span>';
+      $html .= '</select>';
     }
+
+    $html .'<span>';
+
+    $addHtml = "&rows=".$rowsPerPage;
+    if ($page > 0) {
+   	  $html .= ' <a href="'.$action.'?page=0'.$addHtml.'"><img alt="First" title="First" src="images/bat/navfirst.gif" width="16" height="16" /></a>';
+	  $html .= ' <a href="'.$action.'?page='.($page - 1).$addHtml.'"><img alt="Previous" title="Previous" src="images/bat/navprev.gif" width="16" height="16" /></a>';
+    }
+    $html .= ' </span><span><strong>'.($page + 1).'</strong> of <strong>'.($maxPage).'</strong></span> <span>';
+    if ($page + 1 < $maxPage) {
+	  $html .= ' <a href="'.$action.'?page='.($page + 1).$addHtml.'"><img alt="Next" title="Next" src="images/bat/navnext.gif" width="16" height="16" /></a>';
+	  $html .= ' <a href="'.$action.'?page='.($maxPage - 1).$addHtml.'"><img alt="Last" title="Last" src="images/bat/navlast.gif" width="16" height="16" /></a>';
+    }
+    $html .= '</span>';
     $html .= '</td></tr></tfoot></form>';
   }
 
@@ -253,15 +258,11 @@ function showBatEdit ($batDef, $dbh, $isNew) {
       $value = '';
 
       // Set value
-      if ($isNew) {
-        if (isset ($_POST[$i])) {
-          $value = $_POST[$i];
-        }
-      } else {
+      if (isset ($_POST[$i])) {
+        $value = $_POST[$i];
+      } else if (!$isNew) {
         $value = $rowData [strtolower($column)];
       }
-
-      // $value = !$isNew ? $rowData [strtolower($column)] : $_POST[$i];
 
       // Create default input (textfield)
       $inputHtml = '<input type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' value="'.$value.'" />';
@@ -269,19 +270,32 @@ function showBatEdit ($batDef, $dbh, $isNew) {
       // Check optinal "_input" field
       if (isset($col['_input'])) {
         $input = explode("|", $col['_input']);
+        $colClass = isset ($col['_class']) ? ' class="'.$col['_class'].'" ' : '';
         $numOfInputs = count ($input);
 
         // 1) Text field
 		if ($input [0] == 'text') {
-		  // TODO
+		  $inputHtml = '<input type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' value="'.$value.'" '.$colClass.'/>';
 		}
-        // 2) Combo box
+		else if ($input [0] == 'textarea') {
+		  $inputHtml = '<textarea type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' '.$colClass.'/>'.$value.'</textarea>';
+		}
+        // 3) Combo box
         else if ($input [0] == 'combo_sql' && $numOfInputs == 2) {
-          $inputHtml = '<select name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').'>';
+          $inputHtml = '<select name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').$colClass.'>';
           $result = mysql_query ($input [1]);
 		  while ($row = mysql_fetch_array($result, MYSQL_NUM)) {
 		    $s = $row[0] == $value ? ' selected="selected"' : '';
             $inputHtml .= '<option value="'.$row[0].'"'.$s.'>'.$row[1].'</option>';
+		  }
+          $inputHtml .= '</select>';
+        }
+        // 4) Combobox (based on number range)
+        else if ($input [0] == 'combo_numbers' && $numOfInputs == 4) {
+          $inputHtml = '<select name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').$colClass.'>';
+          for ($n = $input [1]; $n < $input [2]; $n+= $input [3]) {
+		    $s = ($n == $value) ? ' selected="selected"' : '';
+            $inputHtml .= '<option value="'.$n.'"'.$s.'>'.$n.'</option>';
 		  }
           $inputHtml .= '</select>';
         }
@@ -314,6 +328,15 @@ function deleteRow ($batDef, $dbh) {
 
 // Update row
 function updateRow ($batDef, $dbh) {
+  // Perform validation first
+  $errors = validate ($batDef);
+  if ($errors != '') {
+    $_POST['bat'] = 'edit';
+    error ($errors);
+    return;
+  }
+
+  // Starting creating SQL (UPDATE)
   $updateSql = 'UPDATE '.$batDef["_db_table"];
   $setSql = ' SET ';
   $whereSql = ' WHERE';
@@ -347,16 +370,25 @@ function updateRow ($batDef, $dbh) {
   $sql = $updateSql.$setSql.$whereSql;
   debug ($batDef, $sql.';');
   if (!mysql_query ($sql, $dbh)) {
-    $_GET['bat'] = 'new';
+    $_GET['bat'] = 'edit';
     error (mysql_error());
   }
   else {
-    success ();
+    success ("Item update successfully");
   }
 }
 
 // Update row
 function insertRow ($batDef, $dbh) {
+  // Perform validation first
+  $errors = validate ($batDef);
+  if ($errors != '') {
+    $_GET['bat'] = 'new';
+    error ($errors);
+    return;
+  }
+
+  // Starting creating SQL (INSERT)
   $insertSql = 'INSERT INTO '.$batDef["_db_table"].' ';
   $columnsSql = '(';
   $valuesSql = ') VALUES (';
@@ -415,6 +447,7 @@ function getResult ($sql) {
 // Return row data
 function getRowData ($batDef) {
   $sql = "SELECT * FROM ".$batDef['_db_table']." WHERE ".getPkeySql ($batDef);
+  debug ($batDef, $sql.';');
   return getResult ($sql);
 }
 
@@ -425,8 +458,8 @@ function getPkeySql ($batDef) {
   $sep = '';
   for ($i = 0; $i < count ($cols); $i++) {
     $col = $cols[$i];
-    if (isset($col['_pkc']) && isset($_GET[$i])) {
-      $val = $_GET[$i];
+    if (isset($col['_pkc'])) {
+      $val = isset($_GET[$i]) ? $_GET[$i] : $_POST["pk_$i"];
       $sql .= $sep.$col['_pkc']." = '$val'";
       $sep = " AND ";
     }
@@ -470,6 +503,23 @@ function getPkeyHiddenInputs ($batDef, $rowData) {
   return $hidden;
 }
 
+// Return list SQL
+function getListSql ($batDef) {
+  $sql = 'SELECT ';
+  $sep = '';
+  for ($i = 0; $i < count ($batDef ['_cols']); $i++) {
+    $col = $batDef['_cols'][$i];
+    $flags = $col['_flags'];
+    if (strpos($flags, 'L') !== false) {
+      $column = isset ($col['_pkc']) ? $col['_pkc'] : $col['_col'];
+      $sql .= $sep.$column;
+      $sep = ',';
+    }
+  }
+  $sql .= ' FROM '.$batDef['_db_table'];
+  return $sql;
+}
+
 // Return number of columns in the list table
 function getColumns ($batDef) {
   $count = 0;
@@ -497,6 +547,35 @@ function getColumns ($batDef) {
     }
   }
   return $count;
+}
+
+// Validation method
+function validate ($batDef) {
+  $errors = '';
+  if (isset ($batDef['_validation'])) {
+    foreach ($batDef['_validation'] as $colId => $val) {
+
+      // Check to see if value is set
+      if (isset ($_POST[$colId])) {
+        $value = trim ($_POST[$colId]);
+        $msg = $val['_msg'];
+        $error = false;
+
+        // Check flags
+        if (isset ($val['_flags'])) {
+          $error = strpos($val['_flags'], 'E') !== false && $value == '';
+        }
+        else if (isset ($val['_equals'])) {
+          $error = $value == $val['_equals'];
+        }
+
+        if ($error) {
+          $errors .= "$msg<br/>";
+        }
+      }
+    }
+  }
+  return $errors;
 }
 
 // Return rows per page
