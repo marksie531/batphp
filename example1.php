@@ -20,7 +20,6 @@ table.edit_table .beds_info { width: 400px; }
 table.edit_table .desc      { width: 400px; height: 50px; }
 </style>
 
-
 <?php
 include "bat.php";
 
@@ -28,22 +27,15 @@ include "bat.php";
 $dbh = mysql_connect ('localhost', 'admin', 'admin');
 $selected = mysql_select_db ('bcm', $dbh) or die( "Unable to select database");
 
-// Create query
-$listSql = "SELECT R.ID          ID,
-                   R.NAME        NAME,
-                   R.BEDS        BEDS,
-                   R.TYPEID      TYPEID,
-                   R.SLEEPS      SLEEPS,
-                   R.MIN_SLEEPS  MIN_SLEEPS,
-                   T.DESCRIPTION TYPE_DESC,
-                   R.RATE_TYPE   RATE_TYPE,
-                   R.DESCRIPTION DESCRIPTION
-              FROM ROOM R, TYPE T
-             WHERE T.ID = R.TYPEID";
-
-$countSql = "COUNT (1) FROM ROOM R, TYPE T WHERE T.ID = R.TYPEID";
-
-// [ Flags ] L=Show is list view, S=Sortable (list view only), E=Show in edit view, R=Show as read-only (edit view only), N=New
+/*
+[ Flags ]
+L=Show is list mode,
+S=Sortable (list mode only),
+E=Show in edit mode,
+R=Show as read-only (edit mode only),
+N=Show in New mode,
+G=Generated
+*/
 $batDef = array (
 	'_action' => 'example1.php',
 	'_db_table' => 'ROOM',
@@ -52,30 +44,22 @@ $batDef = array (
 	'_list_id' => 'rooms',
 	'_edit_id' => 'room',
 	'_default_sort' => 0, '_default_asc' => 1,
-	'_debug_sql' => true,
+	'_debug_sql' => false,
 	'_cols' => array (
-		0 => array ('_lb' => 'ID',          '_pkc' => 'ID',          '_flags' => 'LSRN', '_input' => 'text'),
-		1 => array ('_lb' => 'Name',        '_col' => 'NAME',        '_flags' => 'LSEN', '_input' => 'text'),
-		2 => array ('_lb' => 'Min.Sl',      '_col' => 'MIN_SLEEPS',  '_flags' => 'LSEN', '_input' => 'combo_numbers|0|30|1'),
-		3 => array ('_lb' => 'Sleeps',      '_col' => 'SLEEPS',      '_flags' => 'LSEN', '_input' => 'combo_numbers|0|30|1'),
-		4 => array ('_lb' => 'Beds Info',   '_col' => 'BEDS',        '_flags' => 'LSEN', '_input' => 'text', '_class' => 'beds_info'),
-		5 => array ('_lb' => 'Description', '_col' => 'DESCRIPTION', '_flags' => 'LSEN', '_input' => 'textarea', '_class' => 'desc'),
-	),
-	'_validation' => array (
-	    0 => array ('_flags' => 'E', '_msg' => 'Please specify text for ID field'),
-	    1 => array ('_flags' => 'E', '_msg' => 'Please specify text for Name field'),
-	    2 => array ('_equals' => '0', '_msg' => 'Please specify a non-zero value for the Min Sleeps field'),
-	    3 => array ('_equals' => '0', '_msg' => 'Please specify a non-zero value for the Sleeps field'),
-	    4 => array ('_flags' => 'E', '_msg' => 'Please specify text for Beds field'),
-	    5 => array ('_flags' => 'E', '_msg' => 'Please specify text for Description field'),
+		array ('_lb' => 'ID',          '_pk' => 'ID',          '_fl' => 'LSRG', '_in' => 'text'),
+		array ('_lb' => 'Name',        '_cl' => 'NAME',        '_fl' => 'LSEN', '_in' => 'text'),
+		//array ('_lb' => 'Min.Sl',      '_cl' => 'MIN_SLEEPS',  '_fl' => 'LSEN', '_in' => 'combo_numbers|0|30|1'),
+		array ('_lb' => 'Sleeps',      '_cl' => 'SLEEPS',      '_fl' => 'LSEN', '_in' => 'combo_numbers|0|30|1'),
+		array ('_lb' => 'Beds Info',   '_cl' => 'BEDS',        '_fl' => 'LSEN', '_in' => 'text', '_class' => 'beds_info'),
+		array ('_lb' => 'Description', '_cl' => 'DESCRIPTION', '_fl' => 'LSEN', '_in' => 'textarea', '_class' => 'desc'),
+		array ('_lb' => 'Description', '_cl' => 'DESCRIPTION', '_fl' => 'F', '_in' => 'text', '_class' => 'desc', '_filter_sql' => "DESCRIPTION LIKE '%{value}%'"),
+		array ('_lb' => 'Sleeps',  '_cl' => 'SLEEPS',      '_fl' => 'F', '_in' => 'combo_numbers|0|30|1|,All', '_filter_sql' => "SLEEPS > {value}"),
+        array ('_lb' => 'to',  '_cl' => 'SLEEPS',      '_fl' => 'F', '_in' => 'combo_numbers|0|30|1|,All', '_filter_sql' => "SLEEPS < {value}"),
 	),
 	'_pagination' => array (
 		'_rows_per_page' => 25,
-	    '_row_counts' => array (2, 10, 25, 100, 500)
-	),
-	'_filters' => array (
-
-	),
+	    '_row_counts' => array (5, 25, 100, 500)
+	)
 );
 
 doBat ($batDef, $dbh);

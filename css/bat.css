@@ -74,7 +74,7 @@ table.edit_table tfoot td {
 	border-top: 1px solid #cccccc; 
 }
 
-/* Other settings */
+/* Other CSS settings */
 p.error {
 	color: #CC0000;
 	font-weight: bold;
@@ -83,4 +83,19 @@ p.error {
 p.success {
 	color: #009900;
 	font-weight: bold;
+}
+
+/* Filter div */
+table.list_filters tr td {
+	font-weight: bold;
+	vertical-align: middle;
+	border: 0px;
+}
+table.list_filters button {
+	padding: 0px;
+}
+table.list_filters img {
+	padding: 0px;
+	margin: 0px;
+	border: 0px;
 }

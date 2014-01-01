@@ -64,10 +64,12 @@ Top level attributes (required)
 Top level attributes (optional)
 -------------------------------
 
+The following table lists the various optional attributes and default values if applicable.
+
 | Name        | Defaults   | Description                                                                   |
 |-------------|------------|-------------------------------------------------------------------------------|
-| _list_id    | *blank*    | Use this to set the "id" attribute of the <table> element in the list page    |
-| _edit_id    | *blank*    | Use this to set the "id" attribute of the <table> element in the edit page    |
+| _list_id    | -          | Use this to set the "id" attribute of the <table> element in the list page    |
+| _edit_id    | -          | Use this to set the "id" attribute of the <table> element in the edit page    |
 | _list_class | list_table | Use this to set the "class" attribute of the <table> element in the list page |
 | _edit_class | edit_table | Use this to set the "class" attribute of the <table> element in the edit page |
 
