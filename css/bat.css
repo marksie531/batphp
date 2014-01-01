@@ -1,7 +1,25 @@
+/* 
+----------------------------------------------------------------
+General CSS
+----------------------------------------------------------------
+*/
+
+
 * {
 	font-family: 'Arial';
 	font-size: 12px;
 }
+
+form {
+	margin: 0px;
+}
+
+/* 
+----------------------------------------------------------------
+Link CSS 
+----------------------------------------------------------------
+*/
+
 
 a {
 	text-decoration: none;
@@ -16,7 +34,14 @@ a:hover {
 	text-decoration: underline;
 }
 
-/* All table settings */
+
+/* 
+----------------------------------------------------------------
+Table CSS 
+----------------------------------------------------------------
+*/
+
+
 table {
 	padding: 1px;
 	border-collapse: collapse;
@@ -28,18 +53,38 @@ table tr td {
 }
 
 table thead tr {
+	height: 30px;
 	font-weight: bold;
-	background: #555555;
 	color: #ffffff;
-}
-
-table tfoot tr {
-	background: #eeeeee;
-	color: #444444;
+	background: #555555;
+	background-color: #555555;
+	background: rgb(85, 85, 85);
+	background: -moz-linear-gradient(90deg, rgb(134, 134, 134) 30%, rgb(85, 85, 85) 70%);
+	background: -webkit-linear-gradient(90deg, rgb(134, 134, 134) 30%, rgb(85, 85, 85) 70%);
+	background: -o-linear-gradient(90deg, rgb(134, 134, 134) 30%, rgb(85, 85, 85) 70%);
+	background: -ms-linear-gradient(90deg, rgb(134, 134, 134) 30%, rgb(85, 85, 85) 70%);
+	background: linear-gradient(180deg, rgb(134, 134, 134) 30%, rgb(85, 85, 85) 70%);
+        text-shadow: 1px 1px 2px #222222;
 }
 
 table tbody {
 	vertical-align: top;
+}
+
+table tfoot tr {
+	height: 30px;
+	color: #444444;
+	background-color: #eeeeee;
+	background: rgb(238, 238, 238);
+	background: -moz-linear-gradient(90deg, rgb(238, 238, 238) 30%, rgb(210, 210, 210) 70%);
+	background: -webkit-linear-gradient(90deg, rgb(238, 238, 238) 30%, rgb(210, 210, 210) 70%);
+	background: -o-linear-gradient(90deg, rgb(238, 238, 238) 30%, rgb(210, 210, 210) 70%);
+	background: -ms-linear-gradient(90deg, rgb(238, 238, 238) 30%, rgb(210, 210, 210) 70%);
+	background: linear-gradient(180deg, rgb(238, 238, 238) 30%, rgb(210, 210, 210) 70%);
+        
+}
+table tfoot td {
+	padding: 0px;
 }
 
 /* List table specific settings */
@@ -74,18 +119,7 @@ table.edit_table tfoot td {
 	border-top: 1px solid #cccccc; 
 }
 
-/* Other CSS settings */
-p.error {
-	color: #CC0000;
-	font-weight: bold;
-}
-
-p.success {
-	color: #009900;
-	font-weight: bold;
-}
-
-/* Filter div */
+/* Filter table */
 table.list_filters tr td {
 	font-weight: bold;
 	vertical-align: middle;
@@ -98,4 +132,37 @@ table.list_filters img {
 	padding: 0px;
 	margin: 0px;
 	border: 0px;
+}
+
+
+/* 
+----------------------------------------------------------------
+Input's
+----------------------------------------------------------------
+*/
+
+
+input[type=text] {
+	background-color: ffffcc;
+}
+input[type=submit] {
+	margin: 0px;
+}
+input[type=button] {
+	margin: 0px;
+}
+select {
+	background-color: ffffcc;
+}
+textarea {
+	background-color: ffffcc;
+}
+
+p.error {
+	color: #CC0000;
+	font-weight: bold;
+}
+p.success {
+	color: #009900;
+	font-weight: bold;
 }

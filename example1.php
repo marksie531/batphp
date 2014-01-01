@@ -11,6 +11,7 @@
 <a href="example1.php?bat=new"><button><img src="images/bat/add.png"/> New</button></a>
 <a href="example1.php?bat=excel"><button><img src="images/bat/excel.png"/> Export (Excel)</button></a>
 </p>
+<hr/>
 
 <style>
 table.list_table tbody td.beds_info { text-align: left; }
@@ -44,21 +45,21 @@ $batDef = array (
 	'_list_id' => 'rooms',
 	'_edit_id' => 'room',
 	'_default_sort' => 0, '_default_asc' => 1,
-	'_debug_sql' => false,
+	'_debug_sql' => true,
 	'_cols' => array (
-		array ('_lb' => 'ID',          '_pk' => 'ID',          '_fl' => 'LSRG', '_in' => 'text'),
+		array ('_lb' => 'ID',          '_pk' => 'ID',          '_fl' => 'LSEN', '_in' => 'text'),
 		array ('_lb' => 'Name',        '_cl' => 'NAME',        '_fl' => 'LSEN', '_in' => 'text'),
-		//array ('_lb' => 'Min.Sl',      '_cl' => 'MIN_SLEEPS',  '_fl' => 'LSEN', '_in' => 'combo_numbers|0|30|1'),
-		array ('_lb' => 'Sleeps',      '_cl' => 'SLEEPS',      '_fl' => 'LSEN', '_in' => 'combo_numbers|0|30|1'),
+		array ('_lb' => 'Sleeps',      '_cl' => 'SLEEPS',      '_fl' => 'LSEN', '_in' => 'select|0..30..1'),
 		array ('_lb' => 'Beds Info',   '_cl' => 'BEDS',        '_fl' => 'LSEN', '_in' => 'text', '_class' => 'beds_info'),
 		array ('_lb' => 'Description', '_cl' => 'DESCRIPTION', '_fl' => 'LSEN', '_in' => 'textarea', '_class' => 'desc'),
-		array ('_lb' => 'Description', '_cl' => 'DESCRIPTION', '_fl' => 'F', '_in' => 'text', '_class' => 'desc', '_filter_sql' => "DESCRIPTION LIKE '%{value}%'"),
-		array ('_lb' => 'Sleeps',  '_cl' => 'SLEEPS',      '_fl' => 'F', '_in' => 'combo_numbers|0|30|1|,All', '_filter_sql' => "SLEEPS > {value}"),
-        array ('_lb' => 'to',  '_cl' => 'SLEEPS',      '_fl' => 'F', '_in' => 'combo_numbers|0|30|1|,All', '_filter_sql' => "SLEEPS < {value}"),
+
+		array ('_lb' => 'Text',                                '_fl' => 'F',    '_in' => 'text', '_class' => 'desc', '_filter_sql' => "(DESCRIPTION LIKE '%{value}%' OR BEDS LIKE '%{value}%')"),
+		array ('_lb' => 'Sleeps',      '_cl' => 'SLEEPS',      '_fl' => 'F',    '_in' => 'select|,All|0..30..1', '_filter_sql' => "SLEEPS > {value}"),
+        array ('_lb' => 'to',          '_cl' => 'SLEEPS',      '_fl' => 'F',    '_in' => 'select|,All|0..30..1', '_filter_sql' => "SLEEPS < {value}"),
 	),
 	'_pagination' => array (
 		'_rows_per_page' => 25,
-	    '_row_counts' => array (5, 25, 100, 500)
+	    '_row_counts' => array (2, 25, 100, 500)
 	)
 );
 

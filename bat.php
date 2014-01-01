@@ -1,9 +1,12 @@
 <?php
 
-// Constants
-$defaultRowCount = 25;
+// ----
+// TODO
+// ----
+// Implement foreign key constraints
+//
 
-// Show table grid function
+// Main do bat function
 function doBat ($batDef, $dbh) {
 
   // Do actions first
@@ -31,11 +34,27 @@ function doBat ($batDef, $dbh) {
 // Show table list
 function showBatList ($batDef, $dbh) {
   $html = '';
-  $filterSql = '';
 
-  // Check filters section
+  // 1) Parameters
+  $cols = $batDef ['_cols'];
+  $action = $batDef ['_action'];
+  $defaultSort = isset ($batDef['_default_sort']) ? $batDef['_default_sort'] : -1;
+  $defaultAsc = isset ($batDef['_default_asc']) ? $batDef['_default_asc'] : 1;
+  $sort = isset ($_GET['sort']) ? $_GET['sort'] : $defaultSort;
+  $asc = isset ($_GET['asc']) ? $_GET['asc'] : $defaultAsc;
+  $isPaged = isset ($batDef['_pagination']);
+  $rowsPerPage = getRowsPerPage ($batDef);
+  $filterSql = '';
+  $filterParams = "&rows=$rowsPerPage";
+  $filtersHidden = '<input type="hidden" name="rows" value="'.$rowsPerPage.'"/>';
+
+  // 2) filter section
   if (isAnyColFlagExists ($batDef, 'F')) {
-    $html .= '<form>
+    $html .= '<form name="filter" action="'.$action.'" method="GET">
+      <input type="hidden" name="bat" value="list"/>
+      <input type="hidden" name="sort" value="'.$sort.'"/>
+      <input type="hidden" name="rows" value="'.$rowsPerPage.'"/>
+      <input type="hidden" name="asc" value="'.$asc.'"/>
       <table class="list_filters"><tr>';
 
     $cols = $batDef ['_cols'];
@@ -47,24 +66,34 @@ function showBatList ($batDef, $dbh) {
 
       if (strpos($flags, 'F') !== false) {
         // Set value
-        $column = isset ($col['_pk']) ? $col['_pk'] : $col['_cl'];
         $value = isset ($_GET[$i]) ? trim($_GET[$i]) : '';
 
         // Create default input (textfield)
-        $html .= '<td><span>'.$label.':</span></td>';
+        $html .= '<td><span>'.$label.'</span></td>';
         $html .= '<td>'.getInputHtml ($batDef, $i, $value, false).'</td>';
         $html .= '</td>';
 
         // Append filter SQL
         if ($value != '') {
           if (isset($col['_filter_sql'])) {
-            $filterSql .= $sep.str_replace("{value}", $value, $col['_filter_sql']);
+            $sql = $col['_filter_sql'];
+            $sql = str_replace("{lc_value}", mysql_real_escape_string(strtolower($value)), $sql);
+            $sql = str_replace("{uc_value}", mysql_real_escape_string(strtoupper($value)), $sql);
+            $sql = str_replace("{value}", mysql_real_escape_string($value), $sql);
+
+            // Update filter SQL
+            $filterSql .= $sep.$sql;
           }
           else {
-            $filterSql .= "$sep$column = '$value'";
+            $column = isset ($col['_pk']) ? $col['_pk'] : $col['_cl'];
+            $filterSql .= "$sep$column = '".mysql_real_escape_string($value)."'";
           }
           $sep = " AND ";
         }
+
+        // Apend filter params
+        $filterParams .= "&$i=$value";
+        $filtersHidden .= '<input type="hidden" name="'.$i.'" value="'.$value.'"/>';
       }
     }
 
@@ -72,16 +101,6 @@ function showBatList ($batDef, $dbh) {
     <td><button type="submit"><img src="images/bat/find.png"/></button></td>
     </tr></table></form>';
   }
-
-  // 1) Parameters
-  $cols = $batDef ['_cols'];
-  $action = $batDef ['_action'];
-  $url = $action.'?bat=list';
-  $defaultSort = isset ($batDef['_default_sort']) ? $batDef['_default_sort'] : -1;
-  $defaultAsc = isset ($batDef['_default_asc']) ? $batDef['_default_asc'] : 1;
-  $sort = isset ($_GET['sort']) ? $_GET['sort'] : $defaultSort;
-  $asc = isset ($_GET['asc']) ? $_GET['asc'] : $defaultAsc;
-  $isPaged = isset ($batDef['_pagination']);
 
   // 2) Generate list SQL
 
@@ -112,158 +131,166 @@ function showBatList ($batDef, $dbh) {
 
   debug ($batDef, $sql.';');
   $result = mysql_query ($sql);
+  $rowcount = mysql_num_rows ($result);
 
-  // 3) Create table headers
-  $tableId = isset ($batDef['_list_id']) ? ' id="'.$batDef['_list_id'].'"' : '';
-  $tableClass = ' class="'.(isset ($batDef['_list_class']) ? $batDef['_list_class'] : 'list_table').'"';
+  // Only display table if rows exists
+  $url = $action.'?bat=list'.$filterParams;
+  if ($rowcount) {
+    // 3) Create table headers
+    $tableId = isset ($batDef['_list_id']) ? ' id="'.$batDef['_list_id'].'"' : '';
+    $tableClass = ' class="'.(isset ($batDef['_list_class']) ? $batDef['_list_class'] : 'list_table').'"';
 
-  $html .= "<table$tableId$tableClass>
-    <thead><tr>";
+    $html .= "<table$tableId$tableClass>
+      <thead><tr>";
 
-  // Action columns
-  if (isset ($batDef['_can_edit']) && $batDef['_can_edit']) {
-  	$html .= '<td>Edit</td>';
-  }
-  if (isset ($batDef['_can_delete']) && $batDef['_can_delete']) {
-    $html .= '<td>Del</td>';
-  }
-  if (isset ($batDef['_can_print']) && $batDef['_can_print']) {
-    $html .= '<td>Prt</td>';
-  }
-  if (isset ($batDef['_can_excel']) && $batDef['_can_excel']) {
-    $html .= '<td>Exl</td>';
-  }
-  if (isset ($batDef['_can_pdf']) && $batDef['_can_pdf']) {
-    $html .= '<td>Pdf</td>';
-  }
-
-  // ... columns
-  for ($i = 0; $i < count ($cols); $i++) {
-    $col = $cols[$i];
-    $flags = $cols[$i]['_fl'];
-    $label = $cols[$i]['_lb'];
-    if (strpos($flags, 'L') !== false) {
-      $colClass = isset ($col['_class']) ? ' class="'.$col['_class'].'" ' : '';
-      $header = '';
-      if (strpos($flags, 'S') !== false) {
-        $curAsc = $i == $sort ? -$asc : $asc;
-        $header .= '<a href="'.$url.'&sort='.$i.'&asc='.$curAsc.'">'.$label.'</a>';
-        if ($sort == $i) {
-          $header .= ($asc == -1) ? ' <img src="images/bat/navdown.gif" alt="Sort" />' : ' <img src="images/bat/navup.gif" alt="Sort" />';
-        }
-      }
-      else {
-        $header = $label;
-      }
-
-      $html .= "<td$colClass>$header</td>";
-    }
-  }
-  $html .= '</tr></thead>';
-
-  // 4) Iterate through result set and create body
-  $html .= '<tbody>';
-  while ($row = mysql_fetch_assoc($result)) {
-    $html .= '<tr>';
-    $params = getPkeyParams($row, $batDef).
-      (isset($_GET['sort']) ? '&sort='.$_GET['sort'] : '').
-      (isset($_GET['asc']) ? '&asc='.$_GET['asc'] : '');
-
-    // Do actions
-    $action = $batDef['_action'];
+    // Action columns
     if (isset ($batDef['_can_edit']) && $batDef['_can_edit']) {
-      $html .= '<td><a href="'.$action.'?bat=edit'.$params.'"><img src="images/bat/edit.gif"/></a></td>';
+      $html .= '<td>Edit</td>';
     }
-	if (isset ($batDef['_can_delete']) && $batDef['_can_delete']) {
-	  $deleteJs = '';
-	  if (isset($batDef['_list_delete']) && $batDef['_list_delete'] != -1) {
-	    $ld = $batDef['_list_delete'];
-	    $column = isset ($cols[$ld]['_pk']) ? $cols[$ld]['_pk'] : $cols[$ld]['_cl'];
-	    // echo "asfd column $column";
-        $value = isset ($row [$column]) ? $row [$column] : '';
-	    $deleteJs = ' onclick="return confirm(\'Are you sure you want do delete [ '.$value.' ]\')"';
-	  }
-	  $html .= '<td><a href="'.$action.'?bat=delete'.$params.'" '.$deleteJs.'><img src="images/bat/delete.gif"/></a></td>';
-	}
-	if (isset ($batDef['_can_print']) && $batDef['_can_print']) {
-	  $html .= '<td><a href="'.$action.'?bat=print'.$params.'"><img src="images/bat/print.png"/></a></td>';
-	}
-	if (isset ($batDef['_can_excel']) && $batDef['_can_excel']) {
-	  $html .= '<td><a href="'.$action.'?bat=excel'.$params.'"><img src="images/bat/excel.png"/></a></td>';
-	}
-	if (isset ($batDef['_can_pdf']) && $batDef['_can_pdf']) {
-	  $html .= '<td><a href="'.$action.'?bat=pdf'.$params.'"><img src="images/bat/pdf.png"/></a></td>';
-	}
+    if (isset ($batDef['_can_delete']) && $batDef['_can_delete']) {
+      $html .= '<td>Del</td>';
+    }
+    if (isset ($batDef['_can_print']) && $batDef['_can_print']) {
+      $html .= '<td>Prt</td>';
+    }
+    if (isset ($batDef['_can_excel']) && $batDef['_can_excel']) {
+      $html .= '<td>Exl</td>';
+    }
+    if (isset ($batDef['_can_pdf']) && $batDef['_can_pdf']) {
+      $html .= '<td>Pdf</td>';
+    }
 
-    // Iterate over table columns
-    for ($i = 0; $i < count ($batDef ['_cols']); $i++) {
+    // ... columns
+    for ($i = 0; $i < count ($cols); $i++) {
+      $col = $cols[$i];
       $flags = $cols[$i]['_fl'];
-
+      $label = $cols[$i]['_lb'];
       if (strpos($flags, 'L') !== false) {
-        $col = $cols[$i];
         $colClass = isset ($col['_class']) ? ' class="'.$col['_class'].'" ' : '';
-        $html .= "<td$colClass>";
+        $header = '';
+        if (strpos($flags, 'S') !== false) {
+          $curAsc = $i == $sort ? -$asc : $asc;
+          $header .= '<a href="'.$url.'&sort='.$i.'&asc='.$curAsc.'">'.$label.'</a>';
+          if ($sort == $i) {
+            $header .= ($asc == -1) ? ' <img src="images/bat/navdown.gif" alt="Sort" />' : ' <img src="images/bat/navup.gif" alt="Sort" />';
+          }
+        }
+        else {
+          $header = $label;
+        }
 
-        if (isset ($col['_pk'])) {
-          $html .= $row[$col['_pk']];
-        }
-        else if (isset ($col['_cl'])) {
-          $html .= $row[$col['_cl']];
-        }
-        $html .='</td>';
+        $html .= "<td$colClass>$header</td>";
       }
     }
-    $html .= '</tr>';
-  }
-  $html .= '</tbody>';
+    $html .= '</tr></thead>';
 
-  // 5) Display pagination footer if applicable
-  if ($isPaged) {
-    // Count rows
-    $countSql = isset ($pagination['_db_count_sql']) ? $pagination['_db_count_sql'] : "SELECT COUNT(1) FROM ".$batDef['_db_table'];
-    if ($filterSql != '') {
-      $countSql .= strpos($countSql, ' WHERE ') !== false ? ' AND ' : ' WHERE ';
-      $countSql .= $filterSql;
-    }
-    debug ($batDef, $countSql.';');
+    // 4) Iterate through result set and create body
+    $html .= '<tbody>';
+    while ($row = mysql_fetch_assoc($result)) {
+      $html .= '<tr>';
+      $params = getPkeyParams($row, $batDef).
+        (isset($_GET['sort']) ? '&sort='.$_GET['sort'] : '').
+        (isset($_GET['asc']) ? '&asc='.$_GET['asc'] : '');
 
-    $pagination = $batDef ['_pagination'];
-    $page = isset ($_GET['page']) ? $_GET['page'] : 0;
-    $rowsPerPage = getRowsPerPage ($batDef);
-    $totalRows = getValue ($countSql);
-    $maxPage = ceil ($totalRows / $rowsPerPage);
-
-    $html .= '<form name="rows" action="'.$batDef['_action'].'">
-    <tfoot><tr><td colspan="'.getColumns($batDef).'">';
-
-    // Create "Display" combo box
-    if (isset ($pagination['_row_counts'])) {
-	      $html .= '<strong>Display: </strong>
-        <select name="rows" onchange="javascript:document.rows.submit()">';
-      foreach ($pagination['_row_counts'] as $rowCount) {
-        $s = $rowsPerPage == $rowCount ? ' selected="selected"' : '';
-        $html .= '<option'.$s.'>'.$rowCount.'</option>';
+      // Do actions
+      $action = $batDef['_action'];
+      if (isset ($batDef['_can_edit']) && $batDef['_can_edit']) {
+        $html .= '<td><a href="'.$action.'?bat=edit'.$params.'"><img src="images/bat/edit.gif"/></a></td>';
       }
-      $html .= '</select>';
+	  if (isset ($batDef['_can_delete']) && $batDef['_can_delete']) {
+	    $deleteJs = '';
+	    if (isset($batDef['_list_delete']) && $batDef['_list_delete'] != -1) {
+	      $ld = $batDef['_list_delete'];
+	      $column = isset ($cols[$ld]['_pk']) ? $cols[$ld]['_pk'] : $cols[$ld]['_cl'];
+	      // echo "asfd column $column";
+          $value = isset ($row [$column]) ? $row [$column] : '';
+	      $deleteJs = ' onclick="return confirm(\'Are you sure you want do delete [ '.$value.' ]\')"';
+	    }
+	    $html .= '<td><a href="'.$action.'?bat=delete'.$params.'" '.$deleteJs.'><img src="images/bat/delete.gif"/></a></td>';
+	  }
+	  if (isset ($batDef['_can_print']) && $batDef['_can_print']) {
+	    $html .= '<td><a href="'.$action.'?bat=print'.$params.'"><img src="images/bat/print.png"/></a></td>';
+	  }
+	  if (isset ($batDef['_can_excel']) && $batDef['_can_excel']) {
+	    $html .= '<td><a href="'.$action.'?bat=excel'.$params.'"><img src="images/bat/excel.png"/></a></td>';
+	  }
+	  if (isset ($batDef['_can_pdf']) && $batDef['_can_pdf']) {
+	    $html .= '<td><a href="'.$action.'?bat=pdf'.$params.'"><img src="images/bat/pdf.png"/></a></td>';
+	  }
+
+      // Iterate over table columns
+      for ($i = 0; $i < count ($batDef ['_cols']); $i++) {
+        $flags = $cols[$i]['_fl'];
+
+        if (strpos($flags, 'L') !== false) {
+          $col = $cols[$i];
+          $colClass = isset ($col['_class']) ? ' class="'.$col['_class'].'" ' : '';
+          $html .= "<td$colClass>";
+
+          if (isset ($col['_pk'])) {
+            $html .= $row[$col['_pk']];
+          }
+          else if (isset ($col['_cl'])) {
+            $html .= $row[$col['_cl']];
+          }
+          $html .='</td>';
+        }
+      }
+      $html .= '</tr>';
+    }
+    $html .= '</tbody>';
+
+    // 5) Display pagination footer if applicable
+    if ($isPaged) {
+      // Count rows
+      $countSql = isset ($pagination['_db_count_sql']) ? $pagination['_db_count_sql'] : "SELECT COUNT(1) FROM ".$batDef['_db_table'];
+      if ($filterSql != '') {
+        $countSql .= strpos($countSql, ' WHERE ') !== false ? ' AND ' : ' WHERE ';
+        $countSql .= $filterSql;
+      }
+      debug ($batDef, $countSql.';');
+
+      $pagination = $batDef ['_pagination'];
+      $page = isset ($_GET['page']) ? $_GET['page'] : 0;
+      $totalRows = getValue ($countSql);
+      $maxPage = ceil ($totalRows / $rowsPerPage);
+
+      $html .= '<form name="rows" action="'.$batDef['_action'].'">
+      <input type="hidden" name="page" value="'.$page.'"/>'.$filtersHidden.'
+      <tfoot><tr><td colspan="'.getColumns($batDef).'">';
+
+      // Create "Display" combo box
+      if (isset ($pagination['_row_counts'])) {
+	        $html .= '<strong>Display: </strong>
+          <select name="rows" onchange="javascript:document.rows.submit()">';
+        foreach ($pagination['_row_counts'] as $rowCount) {
+          $s = $rowsPerPage == $rowCount ? ' selected="selected"' : '';
+          $html .= '<option'.$s.'>'.$rowCount.'</option>';
+        }
+        $html .= '</select>';
+      }
+
+      $html .= '<span>';
+
+      $addHtml = "&rows=".$rowsPerPage.$filterParams;
+      if ($page > 0) {
+     	  $html .= ' <a href="'.$action.'?page=0'.$addHtml.'"><img alt="First" title="First" src="images/bat/navfirst.gif" width="16" height="16" /></a>';
+	    $html .= ' <a href="'.$action.'?page='.($page - 1).$addHtml.'"><img alt="Previous" title="Previous" src="images/bat/navprev.gif" width="16" height="16" /></a>';
+      }
+      $html .= '</span><span><strong>'.($page + 1).'</strong> of <strong>'.($maxPage).'</strong></span> <span>';
+      if ($page + 1 < $maxPage) {
+	    $html .= ' <a href="'.$action.'?page='.($page + 1).$addHtml.'"><img alt="Next" title="Next" src="images/bat/navnext.gif" width="16" height="16" /></a>';
+	    $html .= ' <a href="'.$action.'?page='.($maxPage - 1).$addHtml.'"><img alt="Last" title="Last" src="images/bat/navlast.gif" width="16" height="16" /></a>';
+      }
+      $html .= '</span>';
+      $html .= '</td></tr></tfoot></form>';
     }
 
-    $html .= '<span>';
-
-    $addHtml = "&rows=".$rowsPerPage;
-    if ($page > 0) {
-   	  $html .= ' <a href="'.$action.'?page=0'.$addHtml.'"><img alt="First" title="First" src="images/bat/navfirst.gif" width="16" height="16" /></a>';
-	  $html .= ' <a href="'.$action.'?page='.($page - 1).$addHtml.'"><img alt="Previous" title="Previous" src="images/bat/navprev.gif" width="16" height="16" /></a>';
-    }
-    $html .= '</span><span><strong>'.($page + 1).'</strong> of <strong>'.($maxPage).'</strong></span> <span>';
-    if ($page + 1 < $maxPage) {
-	  $html .= ' <a href="'.$action.'?page='.($page + 1).$addHtml.'"><img alt="Next" title="Next" src="images/bat/navnext.gif" width="16" height="16" /></a>';
-	  $html .= ' <a href="'.$action.'?page='.($maxPage - 1).$addHtml.'"><img alt="Last" title="Last" src="images/bat/navlast.gif" width="16" height="16" /></a>';
-    }
-    $html .= '</span>';
-    $html .= '</td></tr></tfoot></form>';
+    $html .= '</table>';
   }
-
-  $html .= '</table>';
+  else {
+    $html .= '<p class="error">No rows exists</p>';
+  }
 
   return $html;
 }
@@ -417,9 +444,14 @@ function insertRow ($batDef, $dbh) {
     // Create SET part
     if (strpos($flags, 'N') !== false || strpos($flags, 'G') !== false) {
       $column = isset ($cols[$i]['_pk']) ? $cols[$i]['_pk'] : $cols[$i]['_cl'];
-      $value = (strpos($flags, 'G') !== false) ?
-          getValue ("SELECT MAX($column)+1 FROM $dbTable") :
-          mysql_real_escape_string($_POST [$i]);
+      if (strpos($flags, 'G') !== false) {
+        $sql = "SELECT MAX($column)+1 AS ID FROM $dbTable";
+        debug ($batDef, $sql.';');
+        $value = getValue ($sql);
+      }
+      else {
+        $value = mysql_real_escape_string($_POST [$i]);
+      }
 
       // Append to update SQL
       $columnsSql .= "$sep$column";
@@ -540,7 +572,6 @@ function getListSql ($batDef) {
 function getInputHtml ($batDef, $i, $value, $readOnly) {
   $cols = $batDef['_cols'];
   $col = $cols[$i];
-  $column = isset ($cols[$i]['_pk']) ? $cols[$i]['_pk'] : $cols[$i]['_cl'];
 
   // Create default input (textfield)
   $inputHtml = '<input type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' value="'.$value.'" />';
@@ -561,51 +592,67 @@ function getInputHtml ($batDef, $i, $value, $readOnly) {
       $inputHtml = '<textarea type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' '.$colClass.'/>'.$value.'</textarea>';
     }
 
-    // 3) Combo box
-    else if ($input [0] == 'combo_sql' && $numOfInputs > 1) {
-      $inputHtml = '<select name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').$colClass.'>';
-
-      // Add optional 'Not specified' section if applicable
-      if ($numOfInputs == 3 && strpos($input [2], ',') !== false) {
-  		$notSpecified = explode(",", $input [2]);
-  		$inputHtml .= '<option value="'.$notSpecified[0].'">'.$notSpecified[1].'</option>';
-      }
-
-      $result = mysql_query ($input [1]);
-  	  while ($row = mysql_fetch_array($result, MYSQL_NUM)) {
-  	    $s = $row[0] == $value ? ' selected="selected"' : '';
-        $inputHtml .= '<option value="'.$row[0].'"'.$s.'>'.$row[1].'</option>';
-  	  }
-      $inputHtml .= '</select>';
+    // 3) Check boxes
+    else if ($input [0] == 'checkbox') {
+      $inputHtml = '<textarea type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' '.$colClass.'/>'.$value.'</textarea>';
     }
-    // 4) Combobox (based on number range)
-    else if ($input [0] == 'combo_numbers' && $numOfInputs >= 4) {
-      $inputHtml = '<select name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').$colClass.'>';
 
-      // Add optional 'Not specified' section if applicable
-      if ($numOfInputs == 5 && strpos($input [4], ',') !== false) {
-        $notSpecified = explode(",", $input [4]);
-        $inputHtml .= '<option value="'.$notSpecified[0].'">'.$notSpecified[1].'</option>';
-  	  }
-
-      for ($n = $input [1]; $n < $input [2]; $n+= $input [3]) {
-  	    $s = ($n == $value) ? ' selected="selected"' : '';
-        $inputHtml .= '<option value="'.$n.'"'.$s.'>'.$n.'</option>';
-  	  }
-      $inputHtml .= '</select>';
-    }
-    // 5) Combo text (user supplied list of names)
-    else if ($input [0] == 'combo_text' && $numOfInputs >= 1) {
-      $inputHtml = '<select name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').$colClass.'>';
+    // 4) combo box / radio buttons
+    else if (($input [0] == 'select' || $input [0] == 'radio') && $numOfInputs > 1) {
+      $isRadio = $input [0] == 'radio';
+      $inputHtml = !$isRadio ? '<select name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').$colClass.'>' : '';
 
       // Create key values
       for ($j = 1; $j < $numOfInputs; $j++) {
-  		  $s = ($n == $value) ? ' selected="selected"' : '';
-  		  $keyValues = explode(",", $input [$j]);
-  		  $key = $keyValues[0];
-  		  $value = count ($keyValues) == 2 ? $keyValues [1] : $keyValues[0];
-        $inputHtml .= '<option value="'.$key.'"'.$s.'>'.$value.'</option>';
-  	  }
+        $curInput = $input [$j];
+
+  		// a) Number range
+  		if (strpos($curInput, '..') !== false) {
+  		  $nums = explode("..", $curInput);
+
+  		  if (count($nums) == 3) {
+            for ($n = $nums[0]; $n < $nums[1]; $n++) {
+  	          if ($isRadio) {
+                $inputHtml .= '<input type="radio" name="'.$i.'" value="'.$n.'"'.($n == $value ? ' checked="checked"' : '').'/> '.$n;
+              }
+              else {
+                $inputHtml .= '<option value="'.$n.'"'.($n == $value ? ' selected="selected"' : '').'>'.$n.'</option>';
+              }
+  	        }
+  	      }
+  		}
+
+  		// b) SQL query
+  		else if (startsWith(strtoupper($curInput), "SELECT ")) {
+          $result = mysql_query ($curInput);
+  	      while ($row = mysql_fetch_array($result, MYSQL_NUM)) {
+  	        $key = $row[0];
+  	        $value = isset ($row[1]) ? $row[1] : $row[0];
+
+  	        if ($isRadio) {
+              $inputHtml .= '<input type="radio" name="'.$i.'" value="'.$key.'"'.($key == $value ? ' checked="checked"' : '').'/> '.$value;
+            }
+            else {
+              $inputHtml .= '<option value="'.$key.'"'.($key == $value ? ' selected="selected"' : '').'>'.$value.'</option>';
+            }
+  	      }
+  		}
+
+  		// c) User supplied text
+  		else {
+  	  	  $values = explode(",", $curInput);
+  	 	  $key = $values[0];
+  		  $text = count ($values) == 2 ? $values [1] : $values[0];
+
+  	      if ($isRadio) {
+            $inputHtml .= '<input type="radio" name="'.$i.'" value="'.$key.'"'.($key == $value ? ' checked="checked"' : '').'/> '.$text;
+          }
+          else {
+            $inputHtml .= '<option value="'.$key.'"'.($key == $value ? ' selected="selected"' : '').'>'.$text.'</option>';
+          }
+  		}
+      }
+
       $inputHtml .= '</select>';
     }
   }
@@ -710,4 +757,8 @@ function debug ($batDef, $message) {
   }
 }
 
+// Starts with function
+function startsWith($haystack, $needle) {
+  return $needle === "" || strpos($haystack, $needle) === 0;
+}
 ?>
