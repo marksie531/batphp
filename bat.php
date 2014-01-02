@@ -1,11 +1,5 @@
 <?php
 
-// ----
-// TODO
-// ----
-// Implement foreign key constraints
-//
-
 // Main do bat function
 function doBat ($batDef, $dbh) {
 
@@ -261,7 +255,7 @@ function showBatList ($batDef, $dbh) {
 
       // Create "Display" combo box
       if (isset ($pagination['_row_counts'])) {
-	        $html .= '<strong>Display: </strong>
+	        $html .= '<span><strong>Display: </strong></span>
           <select name="rows" onchange="javascript:document.rows.submit()">';
         foreach ($pagination['_row_counts'] as $rowCount) {
           $s = $rowsPerPage == $rowCount ? ' selected="selected"' : '';
@@ -361,9 +355,36 @@ function showBatEdit ($batDef, $dbh, $isNew) {
 
 // Delete row
 function deleteRow ($batDef, $dbh) {
-  $sql = "DELETE FROM ".$batDef["_db_table"]." WHERE ".getPkeySql($batDef);
-  debug ($batDef, $sql.';');
-  updateDb ($sql, $dbh);
+  // Check columns for '_v_fk' flag (foreigh key validation)
+  $cols = $batDef ['_cols'];
+  $errors = '';
+  for ($i = 0; $i < count ($cols); $i++) {
+    $col = $cols[$i];
+    $flags = $col['_fl'];
+    if (isset ($col['_v_fk'])) {
+      // $column = isset ($cols[$i]['_pk']) ? $cols[$i]['_pk'] : $cols[$i]['_cl'];
+      $value = mysql_real_escape_string($_GET [$i]);
+      foreach ($col['_v_fk'] as $fk) {
+        $kfArray = explode(".", $fk);
+        if (count ($kfArray) == 2) {
+          $sql = "SELECT COUNT(1) FROM ".$kfArray[0]." WHERE ".$kfArray[1]." = '$value'";
+          debug ($batDef, $sql.';');
+          if (getValue ($sql) > 0) {
+            $errors = 'Item [ '.$value.' ] cannot be deleted because a reference to it exists in the '.$kfArray[0].' table.';
+          }
+        }
+      }
+    }
+  }
+
+  if ($errors == '') {
+    $sql = "DELETE FROM ".$batDef["_db_table"]." WHERE ".getPkeySql($batDef);
+    debug ($batDef, $sql.';');
+    updateDb ($sql, $dbh);
+  }
+  else {
+    error ($errors);
+  }
 }
 
 // Update row
@@ -594,7 +615,7 @@ function getInputHtml ($batDef, $i, $value, $readOnly) {
 
     // 3) Check boxes
     else if ($input [0] == 'checkbox') {
-      $inputHtml = '<textarea type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' '.$colClass.'/>'.$value.'</textarea>';
+      $inputHtml = 'TODO';
     }
 
     // 4) combo box / radio buttons
@@ -623,17 +644,17 @@ function getInputHtml ($batDef, $i, $value, $readOnly) {
   		}
 
   		// b) SQL query
-  		else if (startsWith(strtoupper($curInput), "SELECT ")) {
+  		else if (strStarts(strtoupper($curInput), "SELECT ")) {
           $result = mysql_query ($curInput);
   	      while ($row = mysql_fetch_array($result, MYSQL_NUM)) {
   	        $key = $row[0];
-  	        $value = isset ($row[1]) ? $row[1] : $row[0];
+  	        $text = isset ($row[1]) ? $row[1] : $row[0];
 
   	        if ($isRadio) {
-              $inputHtml .= '<input type="radio" name="'.$i.'" value="'.$key.'"'.($key == $value ? ' checked="checked"' : '').'/> '.$value;
+              $inputHtml .= '<input type="radio" name="'.$i.'" value="'.$key.'"'.($key == $value ? ' checked="checked"' : '').'/> '.$text;
             }
             else {
-              $inputHtml .= '<option value="'.$key.'"'.($key == $value ? ' selected="selected"' : '').'>'.$value.'</option>';
+              $inputHtml .= '<option value="'.$key.'"'.($key == $value ? ' selected="selected"' : '').'>'.$text.'</option>';
             }
   	      }
   		}
@@ -758,7 +779,7 @@ function debug ($batDef, $message) {
 }
 
 // Starts with function
-function startsWith($haystack, $needle) {
+function strStarts($haystack, $needle) {
   return $needle === "" || strpos($haystack, $needle) === 0;
 }
 ?>

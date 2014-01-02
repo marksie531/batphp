@@ -11,7 +11,6 @@
 <a href="example1.php?bat=new"><button><img src="images/bat/add.png"/> New</button></a>
 <a href="example1.php?bat=excel"><button><img src="images/bat/excel.png"/> Export (Excel)</button></a>
 </p>
-<hr/>
 
 <style>
 table.list_table tbody td.beds_info { text-align: left; }
@@ -45,7 +44,7 @@ $batDef = array (
 	'_list_id' => 'rooms',
 	'_edit_id' => 'room',
 	'_default_sort' => 0, '_default_asc' => 1,
-	'_debug_sql' => true,
+	'_debug_sql' => false,
 	'_cols' => array (
 		array ('_lb' => 'ID',          '_pk' => 'ID',          '_fl' => 'LSEN', '_in' => 'text'),
 		array ('_lb' => 'Name',        '_cl' => 'NAME',        '_fl' => 'LSEN', '_in' => 'text'),

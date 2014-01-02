@@ -13,7 +13,7 @@ table.list_table tbody td.desc      { text-align: left; }
 table.edit_table .beds_info { width: 400px; }
 table.edit_table .desc      { width: 400px; height: 50px; }
 </style>
-
+<hr/>
 
 <?php
 include "bat.php";

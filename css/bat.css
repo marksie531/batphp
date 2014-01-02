@@ -92,6 +92,7 @@ table.list_table tfoot td {
 	text-align: left;
 }
 table.list_table tfoot span {
+	padding-left: 5px;
 	text-align: center;
 	display : inline-block; 
 	width: 50px;
@@ -120,6 +121,9 @@ table.edit_table tfoot td {
 }
 
 /* Filter table */
+table.list_filters {
+	margin-bottom: 4px;
+}
 table.list_filters tr td {
 	font-weight: bold;
 	vertical-align: middle;
