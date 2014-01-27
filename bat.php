@@ -14,6 +14,9 @@ function doBat ($batDef, $dbh) {
   else if ($action == 'insert') {
     insertRow ($batDef, $dbh);
   }
+  else if ($action == 'import') {
+    import ($batDef, $dbh);
+  }
 
   // Display view
   $action = getAction ();
@@ -71,8 +74,6 @@ function showBatList ($batDef, $dbh) {
         if ($value != '') {
           if (isset($col['_filter_sql'])) {
             $sql = $col['_filter_sql'];
-            $sql = str_replace("{lc_value}", mysql_real_escape_string(strtolower($value)), $sql);
-            $sql = str_replace("{uc_value}", mysql_real_escape_string(strtoupper($value)), $sql);
             $sql = str_replace("{value}", mysql_real_escape_string($value), $sql);
 
             // Update filter SQL
@@ -82,7 +83,7 @@ function showBatList ($batDef, $dbh) {
             $column = isset ($col['_pk']) ? $col['_pk'] : $col['_cl'];
             $filterSql .= "$sep$column = '".mysql_real_escape_string($value)."'";
           }
-          $sep = " AND ";
+          $sep = " and ";
         }
 
         // Apend filter params
@@ -96,21 +97,45 @@ function showBatList ($batDef, $dbh) {
     </tr></table></form>';
   }
 
-  // 2) Generate list SQL
+  // 3) Do import / export if applicable
+  if (getAction () == 'import') {
+    $html .= '<form action="'.$action.'" method="post">
+      <input type="hidden" name="bat" value="import"/>
+      <textarea name="import"></textarea>
+      <input type="submit" value="Import" onclick="return confirm(\'Warning - importing data deletes all existing data, ensure an export is always performed first! Do you wish to continue?\')"/>
+    </form>';
+  }
+  else if (getAction () == 'export') {
+    $exportSql = getExportSql ($batDef);
+    $result = mysql_query ($exportSql);
+    $export = '';
+    while ($row = mysql_fetch_array($result, MYSQL_NUM)) {
+      $sep = "";
+      foreach ($row as $val) {
+        $export .= $sep.$val;
+        $sep = "\t";
+      }
+      $export .= "\n";
+    }
+
+    $html .= '<textarea name="export">'.$export.'</textarea>';
+  }
+
+  // 4) Generate list SQL
 
   // (a) Generate / Grab SQL
   $sql = isset ($batDef['_db_list_sql']) ? $batDef['_db_list_sql'] : getListSql ($batDef);
 
   // (b) Add filtering if applicable
   if ($filterSql != '') {
-    $sql .= strpos($sql, ' WHERE ') !== false ? ' AND ' : ' WHERE ';
+    $sql .= (stristr($sql, 'where') === false) ? " where " : " and ";
     $sql .= $filterSql;
   }
 
   // (c) Add column sorting if applicable
   if ($sort != -1) {
     $col = isset ($cols[$sort]['_pk']) ? $cols[$sort]['_pk'] : $cols[$sort]['_cl'];
-    $sql .= ' ORDER BY '.$col.' '.($asc == 1 ? 'ASC' : 'DESC');
+    $sql .= ' order by '.$col.' '.($asc == 1 ? 'asc' : 'desc');
   }
 
   // (d) Add pagination if applicable
@@ -120,7 +145,7 @@ function showBatList ($batDef, $dbh) {
     $pageNum = isset($_GET['page']) ? $_GET['page'] : 0;
     $offset = $pageNum * $rowsPerPage;
 
-    $sql .= " LIMIT $offset, $rowsPerPage";
+    $sql .= " limit $offset, $rowsPerPage";
   }
 
   debug ($batDef, $sql.';');
@@ -132,7 +157,7 @@ function showBatList ($batDef, $dbh) {
   if ($rowcount) {
     // 3) Create table headers
     $tableId = isset ($batDef['_list_id']) ? ' id="'.$batDef['_list_id'].'"' : '';
-    $tableClass = ' class="'.(isset ($batDef['_list_class']) ? $batDef['_list_class'] : 'list_table').'"';
+    $tableClass = ' class="bat '.(isset ($batDef['_list_class']) ? $batDef['_list_class'] : 'list_table').'"';
 
     $html .= "<table$tableId$tableClass>
       <thead><tr>";
@@ -147,7 +172,7 @@ function showBatList ($batDef, $dbh) {
     if (isset ($batDef['_can_print']) && $batDef['_can_print']) {
       $html .= '<td>Prt</td>';
     }
-    if (isset ($batDef['_can_excel']) && $batDef['_can_excel']) {
+    if (isset ($batDef['_can_export']) && $batDef['_can_export']) {
       $html .= '<td>Exl</td>';
     }
     if (isset ($batDef['_can_pdf']) && $batDef['_can_pdf']) {
@@ -173,12 +198,12 @@ function showBatList ($batDef, $dbh) {
           $header = $label;
         }
 
-        $html .= "<td$colClass>$header</td>";
+        $html .= "<td nowrap$colClass>$header</td>";
       }
     }
     $html .= '</tr></thead>';
 
-    // 4) Iterate through result set and create body
+    // 5) Iterate through result set and create body
     $html .= '<tbody>';
     while ($row = mysql_fetch_assoc($result)) {
       $html .= '<tr>';
@@ -194,19 +219,20 @@ function showBatList ($batDef, $dbh) {
 	  if (isset ($batDef['_can_delete']) && $batDef['_can_delete']) {
 	    $deleteJs = '';
 	    if (isset($batDef['_list_delete']) && $batDef['_list_delete'] != -1) {
-	      $ld = $batDef['_list_delete'];
-	      $column = isset ($cols[$ld]['_pk']) ? $cols[$ld]['_pk'] : $cols[$ld]['_cl'];
-	      // echo "asfd column $column";
-          $value = isset ($row [$column]) ? $row [$column] : '';
-	      $deleteJs = ' onclick="return confirm(\'Are you sure you want do delete [ '.$value.' ]\')"';
+	      $ld = getColumnIndex($batDef, $batDef['_list_delete']);
+	      if ($ld != -1) {
+	        $column = isset ($cols[$ld]['_pk']) ? $cols[$ld]['_pk'] : $cols[$ld]['_cl'];
+            $value = isset ($row [$column]) ? $row [$column] : '';
+	        $deleteJs = ' onclick="return confirm(\'Are you sure you want do delete [ '.$value.' ]\')"';
+	      }
 	    }
 	    $html .= '<td><a href="'.$action.'?bat=delete'.$params.'" '.$deleteJs.'><img src="images/bat/delete.gif"/></a></td>';
 	  }
 	  if (isset ($batDef['_can_print']) && $batDef['_can_print']) {
 	    $html .= '<td><a href="'.$action.'?bat=print'.$params.'"><img src="images/bat/print.png"/></a></td>';
 	  }
-	  if (isset ($batDef['_can_excel']) && $batDef['_can_excel']) {
-	    $html .= '<td><a href="'.$action.'?bat=excel'.$params.'"><img src="images/bat/excel.png"/></a></td>';
+	  if (isset ($batDef['_can_export']) && $batDef['_can_export']) {
+	    $html .= '<td><a href="'.$action.'?bat=export'.$params.'"><img src="images/bat/export.png"/></a></td>';
 	  }
 	  if (isset ($batDef['_can_pdf']) && $batDef['_can_pdf']) {
 	    $html .= '<td><a href="'.$action.'?bat=pdf'.$params.'"><img src="images/bat/pdf.png"/></a></td>';
@@ -234,12 +260,12 @@ function showBatList ($batDef, $dbh) {
     }
     $html .= '</tbody>';
 
-    // 5) Display pagination footer if applicable
+    // 6) Display pagination footer if applicable
     if ($isPaged) {
       // Count rows
-      $countSql = isset ($pagination['_db_count_sql']) ? $pagination['_db_count_sql'] : "SELECT COUNT(1) FROM ".$batDef['_db_table'];
+      $countSql = isset ($pagination['_db_count_sql']) ? $pagination['_db_count_sql'] : "select count(1) from ".$batDef['_db_table'];
       if ($filterSql != '') {
-        $countSql .= strpos($countSql, ' WHERE ') !== false ? ' AND ' : ' WHERE ';
+        $countSql .= (stristr($countSql, 'where') === false) ? " where " : " and ";
         $countSql .= $filterSql;
       }
       debug ($batDef, $countSql.';');
@@ -283,7 +309,7 @@ function showBatList ($batDef, $dbh) {
     $html .= '</table>';
   }
   else {
-    $html .= '<p class="error">No rows exists</p>';
+    $html .= '<p class="bat_error">No rows exists</p>';
   }
 
   return $html;
@@ -293,7 +319,7 @@ function showBatList ($batDef, $dbh) {
 function showBatEdit ($batDef, $dbh, $isNew) {
   // HTML attributes
   $tableId = isset ($batDef['_edit_id']) ? ' id="'.$batDef['_edit_id'].'"' : '';
-  $tableClass = ' class="'.(isset ($batDef['_edit_class']) ? $batDef['_edit_class'] : 'edit_table').'"';
+  $tableClass = ' class="bat '.(isset ($batDef['_edit_class']) ? $batDef['_edit_class'] : 'edit_table').'"';
   $title = $isNew ? 'New' : 'Edit';
   $action = $isNew ? 'insert' : 'update';
 
@@ -330,8 +356,16 @@ function showBatEdit ($batDef, $dbh, $isNew) {
       if (isset ($_POST[$i])) {
         $value = $_POST[$i];
       } else if (!$isNew) {
-        $column = isset ($cols[$i]['_pk']) ? $cols[$i]['_pk'] : $cols[$i]['_cl'];
-        $value = $rowData [strtolower($column)];
+        $column = '';
+        if (isset ($cols[$i]['_pk'])) {
+          $column = $cols[$i]['_pk'];
+        }
+        else if (isset ($cols[$i]['_cl'])) {
+          $column = $cols[$i]['_cl'];
+        }
+        if ($column != null) {
+          $value = $rowData [strtolower($column)];
+        }
       }
       $readOnly = !$isNew && strpos($flags, 'R') !== false;
 
@@ -362,12 +396,11 @@ function deleteRow ($batDef, $dbh) {
     $col = $cols[$i];
     $flags = $col['_fl'];
     if (isset ($col['_v_fk'])) {
-      // $column = isset ($cols[$i]['_pk']) ? $cols[$i]['_pk'] : $cols[$i]['_cl'];
       $value = mysql_real_escape_string($_GET [$i]);
       foreach ($col['_v_fk'] as $fk) {
         $kfArray = explode(".", $fk);
         if (count ($kfArray) == 2) {
-          $sql = "SELECT COUNT(1) FROM ".$kfArray[0]." WHERE ".$kfArray[1]." = '$value'";
+          $sql = "select count(1) from ".$kfArray[0]." where ".$kfArray[1]." = '$value'";
           debug ($batDef, $sql.';');
           if (getValue ($sql) > 0) {
             $errors = 'Item [ '.$value.' ] cannot be deleted because a reference to it exists in the '.$kfArray[0].' table.';
@@ -381,10 +414,37 @@ function deleteRow ($batDef, $dbh) {
     $sql = "DELETE FROM ".$batDef["_db_table"]." WHERE ".getPkeySql($batDef);
     debug ($batDef, $sql.';');
     updateDb ($sql, $dbh);
+
+    // Delete any additional rows
+    if (isset($batDef['_delete_sql'])) {
+      foreach ($batDef['_delete_sql'] as $delSql) {
+
+        // Set value
+        for ($i = 0; $i < count ($cols); $i++) {
+          $column = isset ($cols[$i]['_pk']) ? $cols[$i]['_pk'] : $cols[$i]['_cl'];
+          $value = isset ($_GET[$i]) ? trim($_GET[$i]) : '';
+          $delSql = str_replace("{".$column."}", mysql_real_escape_string($value), $delSql);
+
+          debug ($batDef, $delSql.';');
+          updateDb ($delSql, $dbh);
+        }
+      }
+    }
   }
   else {
     error ($errors);
   }
+}
+
+function getColumnIndex ($batDef, $columnName) {
+  $cols = $batDef ['_cols'];
+  for ($i = 0; $i < count ($cols); $i++) {
+    $column = isset ($cols[$i]['_pk']) ? $cols[$i]['_pk'] : $cols[$i]['_cl'];
+    if ($column == $columnName) {
+      return $i;
+    }
+  }
+  return -1;
 }
 
 // Update row
@@ -466,7 +526,7 @@ function insertRow ($batDef, $dbh) {
     if (strpos($flags, 'N') !== false || strpos($flags, 'G') !== false) {
       $column = isset ($cols[$i]['_pk']) ? $cols[$i]['_pk'] : $cols[$i]['_cl'];
       if (strpos($flags, 'G') !== false) {
-        $sql = "SELECT MAX($column)+1 AS ID FROM $dbTable";
+        $sql = "select max($column)+1 as id from $dbTable";
         debug ($batDef, $sql.';');
         $value = getValue ($sql);
       }
@@ -493,6 +553,85 @@ function insertRow ($batDef, $dbh) {
   }
 }
 
+// Import data
+function import ($batDef, $dbh) {
+  if (isset ($_POST ['import'])) {
+    $_POST['bat'] = 'list';
+
+    // Retrieve columns and count number of exported columns
+    $cols = $batDef ['_cols'];
+    $exportCount = 0;
+    foreach ($cols as $col) {
+      if (strpos($col['_fl'], 'X') !== false) {
+        $exportCount ++;
+      }
+    }
+
+    $insertSqls = array ();
+    $rows = explode("\n", $_POST['import']);
+    foreach ($rows as $row) {
+      $row = trim ($row);
+
+      if ($row != '') {
+
+        $data = explode ("\t", $row);
+        $colCount = count ($data);
+        if ($colCount == $exportCount) {
+
+          $dbTable = $batDef["_db_table"];
+		  $insertSql = 'INSERT INTO '.$dbTable.' ';
+		  $columnsSql = '(';
+          $valuesSql = ') VALUES (';
+          $sep = '';
+
+          // Iterate through each column
+          for ($i = 0; $i < $colCount; $i++) {
+            $col = $cols[$i];
+            $value = $data[$i];
+            $column = isset ($col['_pk']) ? $col['_pk'] : $col['_cl'];
+
+            $columnsSql .= "$sep$column";
+            $valuesSql .= "$sep'$value'";
+            $sep = ", ";
+          }
+
+          // Complete SQL
+          $valuesSql .= ")";
+          $sql = $insertSql.$columnsSql.$valuesSql;
+          array_push($insertSqls, $sql);
+        }
+        else {
+          error ("Error: mismatch between export data ($exportCount) and database columns ($colCount)");
+          return;
+        }
+      }
+    }
+
+    // Try and insert rows if applicable (with no errors)
+    if (count ($insertSqls) > 0) {
+
+      // Delete from table first
+      $sql = "DELETE FROM ".$batDef["_db_table"];
+	  debug ($batDef, $sql.';');
+      updateDb ($sql, $dbh);
+
+      // Iterate through each insert SQL
+      $count = 0;
+      foreach ($insertSqls as $insertSql) {
+        debug ($batDef, $insertSql.';');
+        if (!mysql_query ($insertSql, $dbh)) {
+          error (mysql_error());
+        }
+        else {
+          $count ++;
+        }
+      }
+
+      success ("Import successful - existing data in table deleted and $count new rows inserted");
+    }
+  }
+}
+
 // Update database
 function updateDb ($sql, $dbh) {
   if (!mysql_query ($sql, $dbh)) {
@@ -515,7 +654,7 @@ function getResult ($sql) {
 
 // Return row data
 function getRowData ($batDef) {
-  $sql = "SELECT * FROM ".$batDef['_db_table']." WHERE ".getPkeySql ($batDef);
+  $sql = "select * from ".$batDef['_db_table']." where ".getPkeySql ($batDef);
   debug ($batDef, $sql.';');
   return getResult ($sql);
 }
@@ -530,7 +669,7 @@ function getPkeySql ($batDef) {
     if (isset($col['_pk'])) {
       $val = isset($_GET[$i]) ? $_GET[$i] : $_POST["pk_$i"];
       $sql .= $sep.$col['_pk']." = '$val'";
-      $sep = " AND ";
+      $sep = " and ";
     }
   }
   return $sql;
@@ -574,7 +713,7 @@ function getPkeyHiddenInputs ($batDef, $rowData) {
 
 // Return list SQL
 function getListSql ($batDef) {
-  $sql = 'SELECT ';
+  $sql = 'select ';
   $sep = '';
   for ($i = 0; $i < count ($batDef ['_cols']); $i++) {
     $col = $batDef['_cols'][$i];
@@ -585,7 +724,24 @@ function getListSql ($batDef) {
       $sep = ',';
     }
   }
-  $sql .= ' FROM '.$batDef['_db_table'];
+  $sql .= ' from '.$batDef['_db_table'];
+  return $sql;
+}
+
+// Return export SQL
+function getExportSql ($batDef) {
+  $sql = 'select ';
+  $sep = '';
+  for ($i = 0; $i < count ($batDef ['_cols']); $i++) {
+    $col = $batDef['_cols'][$i];
+    $flags = $col['_fl'];
+    if (strpos($flags, 'X') !== false) {
+      $column = isset ($col['_pk']) ? $col['_pk'] : $col['_cl'];
+      $sql .= $sep.$column;
+      $sep = ',';
+    }
+  }
+  $sql .= ' from '.$batDef['_db_table'];
   return $sql;
 }
 
@@ -595,22 +751,22 @@ function getInputHtml ($batDef, $i, $value, $readOnly) {
   $col = $cols[$i];
 
   // Create default input (textfield)
-  $inputHtml = '<input type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' value="'.$value.'" />';
+  $inputHtml = '<input class="bat" type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' value="'.$value.'" />';
 
   // Check optinal "_in" field
   if (isset($col['_in'])) {
     $input = explode("|", $col['_in']);
-    $colClass = isset ($col['_class']) ? ' class="'.$col['_class'].'" ' : '';
+    $colClass = isset ($col['_class']) ? ' '.$col['_class'] : '';
     $numOfInputs = count ($input);
 
     // 1) Text field
     if ($input [0] == 'text') {
-      $inputHtml = '<input type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' value="'.$value.'" '.$colClass.'/>';
+      $inputHtml = '<input type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' value="'.$value.'" class="bat'.$colClass.'"/>';
     }
 
     // 2) Text area
     else if ($input [0] == 'textarea') {
-      $inputHtml = '<textarea type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' '.$colClass.'/>'.$value.'</textarea>';
+      $inputHtml = '<textarea type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' class="bat'.$colClass.'"/>'.$value.'</textarea>';
     }
 
     // 3) Check boxes
@@ -621,7 +777,7 @@ function getInputHtml ($batDef, $i, $value, $readOnly) {
     // 4) combo box / radio buttons
     else if (($input [0] == 'select' || $input [0] == 'radio') && $numOfInputs > 1) {
       $isRadio = $input [0] == 'radio';
-      $inputHtml = !$isRadio ? '<select name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').$colClass.'>' : '';
+      $inputHtml = !$isRadio ? '<select name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' class="bat'.$colClass.'">' : '';
 
       // Create key values
       for ($j = 1; $j < $numOfInputs; $j++) {
@@ -703,7 +859,7 @@ function getColumns ($batDef) {
   if (isset ($batDef['_can_print']) && $batDef['_can_print']) {
     $count ++;
   }
-  if (isset ($batDef['_can_excel']) && $batDef['_can_excel']) {
+  if (isset ($batDef['_can_export']) && $batDef['_can_export']) {
     $count ++;
   }
   if (isset ($batDef['_can_pdf']) && $batDef['_can_pdf']) {
@@ -763,12 +919,12 @@ function getAction () {
 
 // Display success message
 function success ($message) {
-  echo '<p class="success">'.$message.'</p>';
+  echo '<p class="bat_success">'.$message.'</p>';
 }
 
 // Display error message
 function error ($message) {
-  echo '<p class="error">'.$message.'</p>';
+  echo '<p class="bat_error">'.$message.'</p>';
 }
 
 // Display debug message

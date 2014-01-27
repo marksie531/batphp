@@ -33,14 +33,14 @@ echo '
 
 $batDef = array (
 	'_action' => 'example4.php',
-	'_db_table' => 'TYPE',
+	'_db_table' => 'type',
 	'_can_edit' => true, '_can_delete' => true,	'_can_excel' => false, '_can_pdf' => false, '_can_print' => false,
 	'_list_delete' => 1,
 	'_default_sort' => 0, '_default_asc' => 1,
-	'_debug_sql' => false,
+	'_debug_sql' => true,
 	'_cols' => array (
-		0 =>  array ('_lb' => 'Id',          '_pk' => 'ID',          '_fl' => 'LSEN', '_in' => 'text',     '_v' => 'E', '_v_fk' => array ('ROOM.TYPEID')),
-		1 =>  array ('_lb' => 'Description', '_cl' => 'DESCRIPTION', '_fl' => 'LSEN', '_in' => 'textarea', '_v' => 'E'),
+		array ('_lb' => 'Id',          '_pk' => 'id',          '_fl' => 'LSEN', '_in' => 'text',     '_v' => 'E', '_v_fk' => array ('room.typeid')),
+		array ('_lb' => 'Description', '_cl' => 'description', '_fl' => 'LSEN', '_in' => 'textarea', '_v' => 'E'),
 	),
 	'_pagination' => array (
 		'_rows_per_page' => 25,

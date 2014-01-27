@@ -29,24 +29,24 @@ $dbh = mysql_connect ('localhost', 'admin', 'admin');
 $selected = mysql_select_db ('bcm', $dbh) or die( "Unable to select database");
 
 // Create query
-$listSql = "SELECT R.ID          ID,
-                   R.NAME        NAME,
-                   R.BEDS        BEDS,
-                   R.TYPEID      TYPEID,
-                   R.SLEEPS      SLEEPS,
-                   R.MIN_SLEEPS  MIN_SLEEPS,
-                   T.DESCRIPTION TYPE_DESC,
-                   R.RATE_TYPE   RATE_TYPE,
-                   R.DESCRIPTION DESCRIPTION
-              FROM ROOM R, TYPE T
-             WHERE T.ID = R.TYPEID";
+$listSql = "select r.id          id,
+                   r.name        name,
+                   r.beds        beds,
+                   r.typeid      typeid,
+                   r.sleeps      sleeps,
+                   r.min_sleeps  min_sleeps,
+                   t.description type_desc,
+                   r.rate_type   rate_type,
+                   r.description description
+              from room r, type t
+             where t.id = r.typeid";
 
-$countSql = "COUNT (1) FROM ROOM R, TYPE T WHERE T.ID = R.TYPEID";
+$countSql = "count(1) from room r, type t where t.id = r.typeid";
 
 // [ Flags ] L=Show is list view, S=Sortable (list view only), E=Show in edit view, R=Show as read-only (edit view only), N=New
 $batDef = array (
 	'_action' => 'example2.php',
-	'_db_table' => 'ROOM',
+	'_db_table' => 'room',
 	'_db_list_sql' => $listSql,
 	'_can_edit' => true, '_can_delete' => true,	'_can_excel' => true, '_can_pdf' => true, '_can_print' => true,
 	'_list_delete' => 1,
@@ -55,19 +55,19 @@ $batDef = array (
 	'_default_sort' => 0, '_default_asc' => 1,
 	'_debug_sql' => false,
 	'_cols' => array (
-		array ('_lb' => 'ID',          '_pk' => 'ID',          '_fl' => 'LSRN', '_in' => 'text', '_v' => 'E'),
-		array ('_lb' => 'Name',        '_cl' => 'NAME',        '_fl' => 'LSEN', '_in' => 'text', '_v' => 'E'),
-		array ('_lb' => 'Type',        '_cl' => 'TYPE_DESC',   '_fl' => 'LS'),
-		array ('_lb' => 'Type',        '_cl' => 'TYPEID',      '_fl' => 'ENF',  '_in' => 'select|,-|SELECT ID,DESCRIPTION FROM TYPE', '_v_eq' => ''),
-		array ('_lb' => 'Min.Sl',      '_cl' => 'MIN_SLEEPS',  '_fl' => 'LSEN', '_in' => 'select|-1,-|0..30..1', '_v_eq' => '-1'),
-		array ('_lb' => 'Sleeps',      '_cl' => 'SLEEPS',      '_fl' => 'LSEN', '_in' => 'select|-1,-|0..30..1', '_v_eq' => '-1'),
-		array ('_lb' => 'Beds Info',   '_cl' => 'BEDS',        '_fl' => 'LSEN', '_in' => 'text', '_v' => 'E', '_class' => 'beds_info'),
-		array ('_lb' => 'Description', '_cl' => 'DESCRIPTION', '_fl' => 'LSEN', '_in' => 'textarea', '_v' => 'E', '_class' => 'desc'),
+		array ('_lb' => 'ID',          '_pk' => 'id',          '_fl' => 'LSRN', '_in' => 'text', '_v' => 'E'),
+		array ('_lb' => 'Name',        '_cl' => 'name',        '_fl' => 'LSEN', '_in' => 'text', '_v' => 'E'),
+		array ('_lb' => 'Type',        '_cl' => 'type_desc',   '_fl' => 'LS'),
+		array ('_lb' => 'Type',        '_cl' => 'typeid',      '_fl' => 'ENF',  '_in' => 'select|,-|select id,description from type', '_v_eq' => ''),
+		array ('_lb' => 'Min.Sl',      '_cl' => 'min_sleeps',  '_fl' => 'LSEN', '_in' => 'select|-1,-|0..30..1', '_v_eq' => '-1'),
+		array ('_lb' => 'Sleeps',      '_cl' => 'sleeps',      '_fl' => 'LSEN', '_in' => 'select|-1,-|0..30..1', '_v_eq' => '-1'),
+		array ('_lb' => 'Beds Info',   '_cl' => 'beds',        '_fl' => 'LSEN', '_in' => 'text', '_v' => 'E', '_class' => 'beds_info'),
+		array ('_lb' => 'Description', '_cl' => 'description', '_fl' => 'LSEN', '_in' => 'textarea', '_v' => 'E', '_class' => 'desc'),
 	),
 	'_pagination' => array (
 		'_rows_per_page' => 25,
 	    '_row_counts' => array (2, 10, 25, 100, 500),
-	    '_db_count_sql' => 'SELECT COUNT(1) FROM ROOM R, TYPE T WHERE T.ID = R.TYPEID',
+	    '_db_count_sql' => $countSql,
 	)
 );
 

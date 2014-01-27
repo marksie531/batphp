@@ -7,31 +7,11 @@ General CSS
 
 * {
 	font-family: 'Arial';
-	font-size: 12px;
+	font-size: 13px;
 }
 
 form {
 	margin: 0px;
-}
-
-/* 
-----------------------------------------------------------------
-Link CSS 
-----------------------------------------------------------------
-*/
-
-
-a {
-	text-decoration: none;
-}
-a:link {
-	color:#ffffff;
-}
-a:visited {
-	color:#ffffff;
-}
-a:hover {
-	text-decoration: underline;
 }
 
 
@@ -42,17 +22,17 @@ Table CSS
 */
 
 
-table {
+table.bat {
 	padding: 1px;
 	border-collapse: collapse;
 }
-table tr td {
+table.bat tr td {
 	text-align: center;
 	padding: 5px;
 	border: 1px solid #cccccc; 
 }
 
-table thead tr {
+table.bat thead tr {
 	height: 30px;
 	font-weight: bold;
 	color: #ffffff;
@@ -67,11 +47,11 @@ table thead tr {
         text-shadow: 1px 1px 2px #222222;
 }
 
-table tbody {
+table.bat tbody {
 	vertical-align: top;
 }
 
-table tfoot tr {
+table.bat tfoot tr {
 	height: 30px;
 	color: #444444;
 	background-color: #eeeeee;
@@ -83,9 +63,23 @@ table tfoot tr {
 	background: linear-gradient(180deg, rgb(238, 238, 238) 30%, rgb(210, 210, 210) 70%);
         
 }
-table tfoot td {
+table.bat tfoot td {
 	padding: 0px;
 }
+
+table.bat a {
+	text-decoration: none;
+}
+table.bat a:link {
+	color:#ffffff;
+}
+table.bat a:visited {
+	color:#ffffff;
+}
+table.bat a:hover {
+	text-decoration: underline;
+}
+
 
 /* List table specific settings */
 table.list_table tfoot td {
@@ -146,27 +140,27 @@ Input's
 */
 
 
-input[type=text] {
+input.bat[type=text] {
 	background-color: ffffcc;
 }
-input[type=submit] {
+input.bat[type=submit] {
 	margin: 0px;
 }
-input[type=button] {
+input.bat[type=button] {
 	margin: 0px;
 }
-select {
+select.bat {
 	background-color: ffffcc;
 }
-textarea {
+textarea.bat {
 	background-color: ffffcc;
 }
 
-p.error {
+p.bat_error {
 	color: #CC0000;
 	font-weight: bold;
 }
-p.success {
+p.bat_success {
 	color: #009900;
 	font-weight: bold;
 }
