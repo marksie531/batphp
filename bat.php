@@ -112,7 +112,8 @@ function showBatList ($batDef, $dbh) {
     while ($row = mysql_fetch_array($result, MYSQL_NUM)) {
       $sep = "";
       foreach ($row as $val) {
-        $export .= $sep.$val;
+        $escapedVal = str_replace (PHP_EOL, "[NL]", $val);
+        $export .= $sep.$escapedVal;
         $sep = "\t";
       }
       $export .= "\n";
@@ -570,8 +571,6 @@ function import ($batDef, $dbh) {
     $insertSqls = array ();
     $rows = explode("\n", $_POST['import']);
     foreach ($rows as $row) {
-      $row = trim ($row);
-
       if ($row != '') {
 
         $data = explode ("\t", $row);
@@ -585,14 +584,20 @@ function import ($batDef, $dbh) {
           $sep = '';
 
           // Iterate through each column
-          for ($i = 0; $i < $colCount; $i++) {
-            $col = $cols[$i];
-            $value = $data[$i];
-            $column = isset ($col['_pk']) ? $col['_pk'] : $col['_cl'];
+          $index = 0;
+          foreach ($cols as $col) {
+            if (strpos($col['_fl'], 'X') !== false) {
+              $value = $data[$index++];
+              $value = trim ($value);
+              $value = str_replace ("[NL]", PHP_EOL, $value);
+              $value = mysql_real_escape_string($value);
 
-            $columnsSql .= "$sep$column";
-            $valuesSql .= "$sep'$value'";
-            $sep = ", ";
+              $column = isset ($col['_pk']) ? $col['_pk'] : $col['_cl'];
+
+              $columnsSql .= "$sep$column";
+              $valuesSql .= "$sep'$value'";
+              $sep = ", ";
+            }
           }
 
           // Complete SQL
