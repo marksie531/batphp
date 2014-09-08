@@ -4,28 +4,31 @@
 function doBat ($batDef, $dbh) {
 
   // Do actions first
-  $action = getAction ();
-  if ($action == 'delete') {
-    deleteRow ($batDef, $dbh);
+  $bat = getBat ();
+  $errors = '';
+  if ($bat == 'delete') {
+    $errors = deleteRow ($batDef, $dbh);
   }
-  else if ($action == 'update') {
-    updateRow ($batDef, $dbh);
+  else if ($bat == 'update') {
+    $errors = updateRow ($batDef, $dbh);
   }
-  else if ($action == 'insert') {
-    insertRow ($batDef, $dbh);
+  else if ($bat == 'insert') {
+    $errors = insertRow ($batDef, $dbh);
   }
-  else if ($action == 'import') {
+  else if ($bat == 'import') {
     import ($batDef, $dbh);
   }
 
   // Display view
-  $action = getAction ();
-  if ($action == 'edit' || $action == 'new') {
-    echo showBatEdit ($batDef, $dbh, ($action == 'new'));
+  $bat = getBat ();
+  if ($bat == 'edit' || $bat == 'new') {
+    echo showBatEdit ($batDef, $dbh, ($bat == 'new'));
   }
   else {
     echo showBatList ($batDef, $dbh);
   }
+
+  return $errors;
 }
 
 // Show table list
@@ -33,6 +36,7 @@ function showBatList ($batDef, $dbh) {
   $html = '';
 
   // 1) Parameters
+  $bat = getBat ();
   $cols = $batDef ['_cols'];
   $action = $batDef ['_action'];
   $defaultSort = isset ($batDef['_default_sort']) ? $batDef['_default_sort'] : -1;
@@ -63,7 +67,10 @@ function showBatList ($batDef, $dbh) {
 
       if (strpos($flags, 'F') !== false) {
         // Set value
-        $value = isset ($_GET[$i]) ? trim($_GET[$i]) : '';
+        $value = '';
+        if (isset ($_GET[$i]) && $bat == 'list') {
+          $value = trim($_GET[$i]);
+        }
 
         // Create default input (textfield)
         $html .= '<td><span>'.$label.'</span></td>';
@@ -98,14 +105,14 @@ function showBatList ($batDef, $dbh) {
   }
 
   // 3) Do import / export if applicable
-  if (getAction () == 'import') {
+  if (getBat () == 'import') {
     $html .= '<form action="'.$action.'" method="post">
       <input type="hidden" name="bat" value="import"/>
       <textarea name="import"></textarea>
       <input type="submit" value="Import" onclick="return confirm(\'Warning - importing data deletes all existing data, ensure an export is always performed first! Do you wish to continue?\')"/>
     </form>';
   }
-  else if (getAction () == 'export') {
+  else if (getBat () == 'export') {
     $exportSql = getExportSql ($batDef);
     $result = mysql_query ($exportSql);
     $export = '';
@@ -377,7 +384,16 @@ function showBatEdit ($batDef, $dbh, $isNew) {
     }
   }
 
-  $html .= '<tfoot><tr><td colspan="2">
+  // Additional extra HTML if set i.e. '_extras_new' or '_extras_edit'
+  if ($isNew && isset($batDef['_extras_new'])) {
+     $html .= $batDef['_extras_new'];
+  }
+  else if (!$isNew && isset($batDef['_extras_edit'])) {
+     $html .= $batDef['_extras_edit'];
+  }
+
+  $html .=
+  '</tbody><tfoot><tr><td colspan="2">
   <input type="button" value="Cancel" onclick="javascript:document.cancel.submit();" />
   <input type="submit" value="OK" />
   </td></tr></tfoot>';
@@ -435,6 +451,7 @@ function deleteRow ($batDef, $dbh) {
   else {
     error ($errors);
   }
+  return $errors;
 }
 
 function getColumnIndex ($batDef, $columnName) {
@@ -455,7 +472,7 @@ function updateRow ($batDef, $dbh) {
   if ($errors != '') {
     $_POST['bat'] = 'edit';
     error ($errors);
-    return;
+    return $errors;
   }
 
   // Starting creating SQL (UPDATE)
@@ -498,6 +515,7 @@ function updateRow ($batDef, $dbh) {
   else {
     success ("Item update successfully");
   }
+  return $errors;
 }
 
 // Update row
@@ -507,7 +525,7 @@ function insertRow ($batDef, $dbh) {
   if ($errors != '') {
     $_GET['bat'] = 'new';
     error ($errors);
-    return;
+    return $errors;
   }
 
   // Starting creating SQL (INSERT)
@@ -552,6 +570,7 @@ function insertRow ($batDef, $dbh) {
   else {
     success ("New item inserted successfully");
   }
+  return $errors;
 }
 
 // Import data
@@ -673,7 +692,7 @@ function getPkeySql ($batDef) {
     $col = $cols[$i];
     if (isset($col['_pk'])) {
       $val = isset($_GET[$i]) ? $_GET[$i] : $_POST["pk_$i"];
-      $sql .= $sep.$col['_pk']." = '$val'";
+      $sql .= $sep.$col['_pk']." = '".mysql_real_escape_string($val)."'";
       $sep = " and ";
     }
   }
@@ -756,7 +775,7 @@ function getInputHtml ($batDef, $i, $value, $readOnly) {
   $col = $cols[$i];
 
   // Create default input (textfield)
-  $inputHtml = '<input class="bat" type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' value="'.$value.'" />';
+  $inputHtml = ' <input class="bat" type="text" name="'.$i.'"'.($readOnly ? 'readonly="readonly"' : '').' value="'.$value.'" />';
 
   // Check optinal "_in" field
   if (isset($col['_in'])) {
@@ -766,12 +785,12 @@ function getInputHtml ($batDef, $i, $value, $readOnly) {
 
     // 1) Text field
     if ($input [0] == 'text') {
-      $inputHtml = '<input type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' value="'.$value.'" class="bat'.$colClass.'"/>';
+      $inputHtml = ' <input type="text" name="'.$i.'"'.($readOnly ? 'readonly="readonly"' : '').' value="'.$value.'" class="bat'.$colClass.'"/>';
     }
 
     // 2) Text area
     else if ($input [0] == 'textarea') {
-      $inputHtml = '<textarea type="text" name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' class="bat'.$colClass.'"/>'.$value.'</textarea>';
+      $inputHtml = ' <textarea type="text" name="'.$i.'"'.($readOnly ? 'readonly="readonly"' : '').' class="bat'.$colClass.'"/>'.$value.'</textarea>';
     }
 
     // 3) Check boxes
@@ -782,7 +801,7 @@ function getInputHtml ($batDef, $i, $value, $readOnly) {
     // 4) combo box / radio buttons
     else if (($input [0] == 'select' || $input [0] == 'radio') && $numOfInputs > 1) {
       $isRadio = $input [0] == 'radio';
-      $inputHtml = !$isRadio ? '<select name="'.$i.'"'.($readOnly ? 'disabled="disabled"' : '').' class="bat'.$colClass.'">' : '';
+      $inputHtml = !$isRadio ? ' <select name="'.$i.'"'.($readOnly ? 'readonly="readonly"' : '').' class="bat'.$colClass.'">' : '';
 
       // Create key values
       for ($j = 1; $j < $numOfInputs; $j++) {
@@ -795,10 +814,10 @@ function getInputHtml ($batDef, $i, $value, $readOnly) {
   		  if (count($nums) == 3) {
             for ($n = $nums[0]; $n < $nums[1]; $n++) {
   	          if ($isRadio) {
-                $inputHtml .= '<input type="radio" name="'.$i.'" value="'.$n.'"'.($n == $value ? ' checked="checked"' : '').'/> '.$n;
+                $inputHtml .= ' <input type="radio" name="'.$i.'" value="'.$n.'"'.($n == $value ? ' checked="checked"' : '').'/> '.$n;
               }
               else {
-                $inputHtml .= '<option value="'.$n.'"'.($n == $value ? ' selected="selected"' : '').'>'.$n.'</option>';
+                $inputHtml .= ' <option value="'.$n.'"'.($n == $value ? ' selected="selected"' : '').'>'.$n.'</option>';
               }
   	        }
   	      }
@@ -812,7 +831,7 @@ function getInputHtml ($batDef, $i, $value, $readOnly) {
   	        $text = isset ($row[1]) ? $row[1] : $row[0];
 
   	        if ($isRadio) {
-              $inputHtml .= '<input type="radio" name="'.$i.'" value="'.$key.'"'.($key == $value ? ' checked="checked"' : '').'/> '.$text;
+              $inputHtml .= ' <input type="radio" name="'.$i.'" value="'.$key.'"'.($key == $value ? ' checked="checked"' : '').'/> '.$text;
             }
             else {
               $inputHtml .= '<option value="'.$key.'"'.($key == $value ? ' selected="selected"' : '').'>'.$text.'</option>';
@@ -827,10 +846,10 @@ function getInputHtml ($batDef, $i, $value, $readOnly) {
   		  $text = count ($values) == 2 ? $values [1] : $values[0];
 
   	      if ($isRadio) {
-            $inputHtml .= '<input type="radio" name="'.$i.'" value="'.$key.'"'.($key == $value ? ' checked="checked"' : '').'/> '.$text;
+            $inputHtml .= ' <input type="radio" name="'.$i.'" value="'.$key.'"'.($key == $value ? ' checked="checked"' : '').'/> '.$text;
           }
           else {
-            $inputHtml .= '<option value="'.$key.'"'.($key == $value ? ' selected="selected"' : '').'>'.$text.'</option>';
+            $inputHtml .= ' <option value="'.$key.'"'.($key == $value ? ' selected="selected"' : '').'>'.$text.'</option>';
           }
   		}
       }
@@ -911,7 +930,7 @@ function getRowsPerPage ($batDef) {
 }
 
 // Get action
-function getAction () {
+function getBat () {
   $action = "list";
   if (isset ($_GET['bat'])) {
     $action = $_GET['bat'];
